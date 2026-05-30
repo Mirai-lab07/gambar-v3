@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   motion,
   AnimatePresence,
   useScroll,
-  useMotionValue,
   useTransform,
 } from "framer-motion";
 import {
@@ -15,14 +14,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpRight,
-  Instagram,
   Music,
   Mail,
-  Info,
   Layers,
   MapPin,
   Cpu,
-  Tv,
   Calendar,
   CheckCircle,
   Clock,
@@ -30,11 +26,47 @@ import {
   Lock,
   User,
   Eye,
-  Settings,
-  Flame,
   Award,
-  Linkedin,
 } from "lucide-react";
+
+// Custom Brand Icons for Lucide v1 compatibility
+const Instagram = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
+
+const Linkedin = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
 
 // Curated premium photographs including local Heritage captures
 const PHOTOS = [
@@ -531,6 +563,13 @@ const CustomGlassCalendar = ({ startDate, endDate, onChange }) => {
   );
 };
 
+const artisticThemes = [
+  "PURE LIGHT CAPTURE",
+  "BRUTALIST GEOMETRY",
+  "STREET SUB-CULTURES",
+  "TEMPORAL HONESTY",
+];
+
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -540,12 +579,6 @@ export default function App() {
 
   // Dynamic Word-Swapping loop state for Hero
   const [activeThemeIndex, setActiveThemeIndex] = useState(0);
-  const artisticThemes = [
-    "PURE LIGHT CAPTURE",
-    "BRUTALIST GEOMETRY",
-    "STREET SUB-CULTURES",
-    "TEMPORAL HONESTY",
-  ];
 
   // Authentication & Portal States
   const [isPortalOpen, setIsPortalOpen] = useState(false);
@@ -631,11 +664,15 @@ export default function App() {
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 3);
-      setRentalForm((prev) => ({
-        ...prev,
-        startDate: today,
-        endDate: tomorrow,
-      }));
+      
+      const timer = setTimeout(() => {
+        setRentalForm((prev) => ({
+          ...prev,
+          startDate: today,
+          endDate: tomorrow,
+        }));
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [selectedRental]);
 
