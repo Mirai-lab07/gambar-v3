@@ -225,8 +225,8 @@ const GEAR_ITEMS = [
   {
     id: "g4",
     name: "NIKKOR 55-300mm f/4.5-5.6G ED VR",
-    type: "Telephoto Optic",
-    desc: "A high-reach telephoto optic with built-in stabilization. Excellent for compressed architectural perspectives and remote motion captures.",
+    type: "Telephoto Lens",
+    desc: "A high-reach telephoto lens with built-in stabilization. Excellent for compressed architectural perspectives and remote motion captures.",
     spec: "Vibration Reduction (VR II), Extra-low Dispersion (ED) glass architecture.",
     icon: Compass,
     size: "col-span-2 md:col-span-2 row-span-1",
@@ -252,7 +252,7 @@ const GEAR_ITEMS = [
   {
     id: "g7",
     name: "Insta360 X4 Air",
-    type: "Action Camera Setup",
+    type: "Action Camera ",
     desc: "Spherical visual capture unit providing dynamic wide perspectives, high-stability tracking, and creative 360-degree framing possibilities.",
     spec: "8K 360 Video, FlowState Stabilization, deep horizontal leveling.",
     icon: Eye,
@@ -260,8 +260,8 @@ const GEAR_ITEMS = [
   },
   {
     id: "g8",
-    name: "HP Victus 16",
-    type: "Editing Workstation",
+    name: "HP Victus 15",
+    type: "PortableEditing Workstation",
     desc: "The raw computational heart of the studio, built to process heavy batch RAW catalogs, grade cinema files, and export large scale print proofs.",
     spec: "Dedicated high-performance RTX GPU, color-accurate high-refresh panel.",
     icon: Cpu,
@@ -276,14 +276,14 @@ const RENTAL_ITEMS = [
     name: "Nikon D3100 Starter Kit",
     subtitle: "Classic DX Format Simplicity & Character",
     type: "Camera System",
-    rate: "RM 110 / day",
+    rate: "RM 30 / day",
     desc: "Experience the highly balanced DX format sensor with standard kit optic. It serves as an excellent low-profile, highly tactile street setup for local explorations.",
     lensIncluded: "AF-S DX NIKKOR 18-55mm f/3.5-5.6G VR",
     specs: [
       "14.2 MP DX-format CMOS sensor",
       "Active D-Lighting contrast rendering",
       "Lightweight physical blueprint",
-      "Includes 2x batteries & 64GB card",
+      "Includes 1x batteries & 32GB card",
     ],
     image:
       "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=800",
@@ -293,7 +293,7 @@ const RENTAL_ITEMS = [
     name: "Nikon AF Zoom-Nikkor 70-300mm",
     subtitle: "f/4-5.6D ED Architecture & Reach",
     type: "Precision Optic",
-    rate: "RM 80 / day",
+    rate: "RM 60 / day",
     desc: "A highly acclaimed lightweight telephoto lens, prized for its mechanical aperture ring and authentic rendering. Perfect for high-compression urban designs.",
     lensIncluded: "Inherent mechanical focusing & aperture mechanics",
     specs: [
@@ -560,6 +560,7 @@ export default function App() {
   const [rentalForm, setRentalForm] = useState({
     name: "",
     email: "",
+    phone: "",
     startDate: null,
     endDate: null,
   });
@@ -625,7 +626,7 @@ export default function App() {
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 3);
-      
+
       const timer = setTimeout(() => {
         setRentalForm((prev) => ({
           ...prev,
@@ -752,10 +753,31 @@ export default function App() {
     setBookingsList((prev) => [newBooking, ...prev]);
     setRentalSuccess(true);
 
+    // WhatsApp Automation - Opens in new tab with pre-filled details
+    const adminWhatsApp = "601123180399"; // Replace with your actual WhatsApp number
+    const message =
+      `*NEW LEASE REQUEST*%0A%0A` +
+      `*Equipment:* ${selectedRental.name}%0A` +
+      `*Client:* ${rentalForm.name}%0A` +
+      `*Email:* ${rentalForm.email}%0A` +
+      `*Phone:* ${rentalForm.phone}%0A` +
+      `*Duration:* ${days} Days%0A` +
+      `*Date:* ${formattedStart} to ${formattedEnd}%0A` +
+      `*Total Cost:* RM ${finalCost.toFixed(2)}%0A%0A` +
+      `_Submitted via Mirul Studio Booking Portal_`;
+
+    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
+
     setTimeout(() => {
       setRentalSuccess(false);
       setSelectedRental(null);
-      setRentalForm({ name: "", email: "", startDate: null, endDate: null });
+      setRentalForm({
+        name: "",
+        email: "",
+        phone: "",
+        startDate: null,
+        endDate: null,
+      });
     }, 2500);
   };
 
@@ -1056,7 +1078,7 @@ export default function App() {
                   FOCUS AREAS
                 </p>
                 <p className="text-xs text-zinc-300 tracking-wide mt-1">
-                  Automotive · Street · Monochrom
+                  Sport · Street · Monochrom Speedtrap
                 </p>
               </div>
               <div className="hidden sm:block">
@@ -1064,7 +1086,7 @@ export default function App() {
                   EXHIBITIONS
                 </p>
                 <p className="text-xs text-zinc-300 tracking-wide mt-1">
-                  Malacca Heritage '24 · London Brutalism '25
+                  Malacca 33
                 </p>
               </div>
             </div>
@@ -1455,7 +1477,7 @@ export default function App() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end space-y-4 md:space-y-0">
             <div className="space-y-2">
               <span className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">
-                RENTAL ATELIER
+                RENTAL BY MIRUL STUDIO
               </span>
               <h3 className="text-3xl md:text-5xl font-semibold tracking-tight uppercase">
                 Equipment Lease
@@ -1798,6 +1820,25 @@ export default function App() {
                         />
                       </div>
 
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={rentalForm.phone}
+                          onChange={(e) =>
+                            setRentalForm({
+                              ...rentalForm,
+                              phone: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. 011-21008620"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-600 transition-colors"
+                        />
+                      </div>
+
                       {/* Dynamic Pricing Estimate Receipt in MYR (RM) */}
                       {(() => {
                         const dailyRate = parseInt(
@@ -2125,7 +2166,6 @@ export default function App() {
                 </div>
                 <ArrowUpRight className="w-4 h-4 text-zinc-600 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
               </a>
-
             </div>
           </div>
 
