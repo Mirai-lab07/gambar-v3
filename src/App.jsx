@@ -33,41 +33,41 @@ import {
 const PHOTOS = [
   {
     id: 1,
-    title: "Shadows of Shinjuku",
+    title: "Green Wildlife",
     category: "street",
-    url: "https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?auto=format&fit=crop&q=80&w=1200",
+    url: "/image/IMG_0781.jpg",
     exif: {
-      camera: "Leica M11 Monochrom",
-      lens: "Summilux 35mm f/1.4",
-      shutter: "1/160s",
-      aperture: "f/1.4",
-      iso: "3200",
+      camera: "Iphone 12 pro max",
+      lens: "Telephoto 65mm f/2.2",
+      shutter: "1/580s",
+      aperture: "f/2.2",
+      iso: "20",
     },
-    location: "Tokyo, Japan",
-    year: "2025",
+    location: "DRC Kenaboi, Malaysia",
+    year: "2026",
     aspect: "aspect-[3/4]",
   },
   {
     id: 2,
-    title: "The Stuttgart Monologue",
+    title: "Skybound Phantom",
     category: "automotive",
-    url: "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=1200",
+    url: "image/_DSC0196.jpg",
     exif: {
-      camera: "Hasselblad X2D 100C",
-      lens: "XCD 55mm f/2.5",
-      shutter: "1/250s",
-      aperture: "f/2.8",
-      iso: "64",
+      camera: "Nikon D7000",
+      lens: "Nikkor 55-300mm f/4.5-5.6G AF-S ED VR",
+      shutter: "1/2500s",
+      aperture: "f/5",
+      iso: "320",
     },
-    location: "Stuttgart, Germany",
-    year: "2026",
+    location: "<Merlimau>, Malaysia",
+    year: "2025",
     aspect: "aspect-[16/10]",
   },
   {
     id: 3,
     title: "Brutalist Ascent",
     category: "cinematic",
-    url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200",
+    url: "/image/background/IMG_6931.heic",
     exif: {
       camera: "Sony A7R V",
       lens: "FE 24-70mm f/2.8 GM II",
@@ -81,17 +81,17 @@ const PHOTOS = [
   },
   {
     id: 4,
-    title: "Neon Rain Reflection",
+    title: "Lunar Monolith",
     category: "street",
-    url: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&q=80&w=1200",
+    url: "/image/_DSC0534.JPG",
     exif: {
-      camera: "Leica M11 Monochrom",
-      lens: "Summilux 50mm f/1.4",
-      shutter: "1/125s",
-      aperture: "f/1.4",
-      iso: "1600",
+      camera: "NIKON D90",
+      lens: "Nikkor 55-300mm f/4.5-5.6G AF-S ED VR",
+      shutter: "1/640s",
+      aperture: "f/8",
+      iso: "100",
     },
-    location: "Seoul, South Korea",
+    location: "Ayer Keroh, Malaysia",
     year: "2026",
     aspect: "aspect-[4/5]",
   },
@@ -113,17 +113,17 @@ const PHOTOS = [
   },
   {
     id: 6,
-    title: "Silent Horizon",
+    title: "Flowing Silence",
     category: "cinematic",
-    url: "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=1200",
+    url: "image/IMG_2885.JPG",
     exif: {
-      camera: "Sony A7R V",
-      lens: "FE 70-200mm f/2.8 GM II",
-      shutter: "1/1000s",
-      aperture: "f/8.0",
+      camera: "Nikon D90",
+      lens: "Nikkor 55-300mm f/4.5-5.6G AF-S ED VR",
+      shutter: "1/3s",
+      aperture: "f/22",
       iso: "100",
     },
-    location: "Icelandic Highlands",
+    location: "Kuala Pilah , Malaysia",
     year: "2025",
     aspect: "aspect-[16/10]",
   },
@@ -951,9 +951,9 @@ export default function App() {
         >
           {/* Architectural Concrete / Glass masterpiece perspective frame */}
           <img
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=2000"
+            src="/image/background/IMG_6931.jpg"
             alt="Cinematic Architectural Blueprint"
-            className="w-full h-full object-cover brightness-[0.35] contrast-[1.05]"
+            className="w-full h-full object-cover brightness-[0.50] contrast-[1.00]"
           />
         </motion.div>
 
@@ -974,7 +974,7 @@ export default function App() {
                 }}
                 className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-400"
               >
-                ESTABLISHED 2019
+                ESTABLISHED 2024
               </motion.h2>
             </div>
 
@@ -1042,7 +1042,7 @@ export default function App() {
                 <span>•</span>
                 <span>MALACCA ARCHIVE EDITION</span>
                 <span>•</span>
-                <span>60MP DIGITAL CHASSIS</span>
+                <span>12.3MP DIGITAL CHASSIS</span>
                 <span>•</span>
                 <span>ANAMORPHIC MOTION RIGS</span>
                 <span>•</span>
