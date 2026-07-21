@@ -85,8 +85,8 @@ const PHOTOS = [
     category: "street",
     url: "/image/_DSC0534.JPG",
     exif: {
-      camera: "NIKON D90",
-      lens: "Nikkor 55-300mm f/4.5-5.6G AF-S ED VR",
+      camera: "NIKON D3100",
+      lens: "Nikkor 70-300mm f/4.5-5.6G AF-S ED VR",
       shutter: "1/640s",
       aperture: "f/8",
       iso: "100",
@@ -147,31 +147,31 @@ const PHOTOS = [
     id: 8,
     title: "Aerodynamic Symphony",
     category: "automotive",
-    url: "https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&q=80&w=1200",
+    url: "/image/IMG_2699.JPG",
     exif: {
-      camera: "Hasselblad X2D 100C",
-      lens: "XCD 90mm f/2.5",
+      camera: "Nikon z5_2",
+      lens: "NIKKOR Z 85mm f/1.8 S",
       shutter: "1/400s",
-      aperture: "f/2.5",
-      iso: "125",
+      aperture: "f/1.8",
+      iso: "100",
     },
-    location: "Monaco GP Circuit",
+    location: "Eye on, Maleka",
     year: "2026",
     aspect: "aspect-[3/4]",
   },
   {
     id: 9,
-    title: "Red Square Heritage",
+    title: "Black&white Street",
     category: "street",
-    url: "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&q=80&w=1200",
+    url: "/image/IMG_1714.jpg",
     exif: {
-      camera: "Leica M11 Monochrom",
-      lens: "Elmarit-M 28mm f/2.8",
-      shutter: "1/200s",
-      aperture: "f/4.5",
-      iso: "640",
+      camera: "iPhone 12 Pro Max",
+      lens: "Wide 26mm f/1.6",
+      shutter: "1/3660s",
+      aperture: "f/1.6",
+      iso: "32",
     },
-    location: "Malacca, Malaysia",
+    location: "Negeri Sembilan, Malaysia",
     year: "2026",
     aspect: "aspect-[3/4]",
   },
@@ -2155,13 +2155,13 @@ export default function App() {
               </a>
 
               <a
-                href="mailto:mirul@visualarchive.com"
+                href="mailto:kairuls.hakim@gmail.com"
                 className="group flex items-center justify-between p-4 bg-zinc-900/30 hover:bg-zinc-900/70 border border-zinc-900 hover:border-zinc-800 rounded-lg transition-all duration-300 md:w-80 interactive-item"
               >
                 <div className="flex items-center space-x-3">
                   <Mail className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
                   <span className="text-xs font-mono tracking-wide text-zinc-300">
-                    mirul@visualarchive.com
+                    kairuls.hakim@gmail.com
                   </span>
                 </div>
                 <ArrowUpRight className="w-4 h-4 text-zinc-600 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
