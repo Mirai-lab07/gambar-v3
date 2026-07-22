@@ -302,8 +302,7 @@ const RENTAL_ITEMS = [
       "Symmetric 9-blade configuration",
       "Excellent perspective perspective compression",
     ],
-    image:
-      "https://images.unsplash.com/photo-1617005082133-548c4dd27f35?auto=format&fit=crop&q=80&w=800",
+    image: "/image/background/_DSC0007.jpg",
   },
 ];
 
