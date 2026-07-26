@@ -27,6 +27,8 @@ import {
   User,
   Eye,
   Award,
+  Upload,
+  FileCheck,
 } from "lucide-react";
 
 // Curated premium photographs including local Heritage captures
@@ -269,6 +271,22 @@ const GEAR_ITEMS = [
   },
 ];
 
+// Helper function for dynamic pricing calculations (e.g. tiered discounts)
+const calculateRentalPricing = (rental, days) => {
+  if (!rental) return { dailyRate: 0, subtotal: 0, isDiscounted: false };
+  let dailyRate = parseInt(rental.rate.replace(/[^0-9]/g, ""), 10);
+  let isDiscounted = false;
+
+  // Custom discount logic: r3 Insta360 X4 Air set gets RM50/day if rented for > 3 days
+  if (rental.id === "r3" && days > 3) {
+    dailyRate = 50;
+    isDiscounted = true;
+  }
+
+  const subtotal = dailyRate * days;
+  return { dailyRate, subtotal, isDiscounted };
+};
+
 // Camera & Lens Rental inventory in MYR (RM)
 const RENTAL_ITEMS = [
   {
@@ -303,6 +321,24 @@ const RENTAL_ITEMS = [
       "Excellent perspective perspective compression",
     ],
     image: "/image/background/_DSC0007.jpg",
+  },
+  {
+    id: "r3",
+    name: "Insta360 X4 Air Set",
+    subtitle: "8K 360 Action Camera & Dynamic Rig",
+    type: "360 Action Camera",
+    rate: "RM 60 / day",
+    promoNote: ">3 hari: RM 50/day",
+    desc: "Complete spherical 8K video capture system with FlowState stabilization and invisible selfie stick. Special discounted rate of RM 50/day applies for rentals longer than 3 days.",
+    lensIncluded: "Dual 360° lens array with optical guards",
+    specs: [
+      "8K 360° Video & FlowState Stabilization",
+      "Invisible Selfie Stick & Mount Kit",
+      "Promo: RM 50/day for > 3 days rental",
+      "Includes 2x Batteries & 64GB Card",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
   },
 ];
 
@@ -438,7 +474,9 @@ const CustomGlassCalendar = ({ startDate, endDate, onChange }) => {
 
   const calendarCells = [];
   for (let i = 0; i < firstDayIndex; i++) {
-    calendarCells.push(<div key={`empty-${i}`} className="h-10 w-10" />);
+    calendarCells.push(
+      <div key={`empty-${i}`} className="h-8 w-8 sm:h-10 sm:w-10" />,
+    );
   }
 
   for (let day = 1; day <= totalDays; day++) {
@@ -457,7 +495,7 @@ const CustomGlassCalendar = ({ startDate, endDate, onChange }) => {
         onMouseLeave={() => setHoveredDate(null)}
         onClick={() => handleDayClick(day)}
         disabled={disabled}
-        className={`h-10 w-10 flex items-center justify-center text-xs font-mono rounded-full relative transition-all duration-200 ${
+        className={`h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center text-[11px] sm:text-xs font-mono rounded-full relative transition-all duration-200 ${
           disabled
             ? "text-zinc-700 cursor-not-allowed"
             : isStart || isEnd
@@ -476,7 +514,7 @@ const CustomGlassCalendar = ({ startDate, endDate, onChange }) => {
   }
 
   return (
-    <div className="bg-zinc-950/40 backdrop-blur-xl border border-white/5 p-6 rounded-xl w-full max-w-sm mx-auto space-y-4 shadow-2xl">
+    <div className="bg-zinc-950/40 backdrop-blur-xl border border-white/5 p-3.5 sm:p-6 rounded-xl w-full max-w-sm mx-auto space-y-3 sm:space-y-4 shadow-2xl">
       <div className="flex justify-between items-center border-b border-white/5 pb-3">
         <button
           onClick={handlePrevMonth}
@@ -560,6 +598,8 @@ export default function App() {
     name: "",
     email: "",
     phone: "",
+    icFile: null,
+    icFileName: "",
     startDate: null,
     endDate: null,
   });
@@ -718,15 +758,16 @@ export default function App() {
   const handleRentalSubmit = (e) => {
     e.preventDefault();
 
-    if (!rentalForm.startDate || !rentalForm.endDate) {
+    if (!rentalForm.startDate || !rentalForm.endDate || !rentalForm.icFile) {
       return;
     }
 
-    const dailyRate = parseInt(selectedRental.rate.replace(/[^0-9]/g, ""), 10);
     const days = getDurationDays(rentalForm.startDate, rentalForm.endDate);
-    const subtotal = dailyRate * days;
-    const damageWaiver = 30.0;
-    const finalCost = subtotal + damageWaiver;
+    const { dailyRate, subtotal } = calculateRentalPricing(
+      selectedRental,
+      days,
+    );
+    const finalCost = subtotal;
 
     const formattedStart = rentalForm.startDate.toLocaleDateString("en-MY", {
       year: "numeric",
@@ -746,6 +787,7 @@ export default function App() {
       date: `${formattedStart} to ${formattedEnd}`,
       rate: selectedRental.rate,
       totalCost: `RM ${finalCost.toFixed(2)}`,
+      icAttached: rentalForm.icFileName || "Verified Copy",
       status: "Processing Verification",
     };
 
@@ -760,6 +802,7 @@ export default function App() {
       `*Client:* ${rentalForm.name}%0A` +
       `*Email:* ${rentalForm.email}%0A` +
       `*Phone:* ${rentalForm.phone}%0A` +
+      `*IC Document:* ${rentalForm.icFileName || "Attached"}%0A` +
       `*Duration:* ${days} Days%0A` +
       `*Date:* ${formattedStart} to ${formattedEnd}%0A` +
       `*Total Cost:* RM ${finalCost.toFixed(2)}%0A%0A` +
@@ -774,6 +817,8 @@ export default function App() {
         name: "",
         email: "",
         phone: "",
+        icFile: null,
+        icFileName: "",
         startDate: null,
         endDate: null,
       });
@@ -1515,13 +1560,20 @@ export default function App() {
 
                 <div className="p-8 flex flex-col justify-between flex-1 space-y-6">
                   <div className="space-y-2">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-2">
                       <h4 className="text-xl font-bold tracking-tight text-white">
                         {item.name}
                       </h4>
-                      <span className="text-sm font-mono text-emerald-400 font-semibold">
-                        {item.rate}
-                      </span>
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-sm font-mono text-emerald-400 font-semibold block">
+                          {item.rate}
+                        </span>
+                        {item.promoNote && (
+                          <span className="text-[10px] font-mono text-emerald-300/80 block mt-0.5">
+                            {item.promoNote}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-zinc-400 font-light tracking-wide">
                       {item.subtitle}
@@ -1606,20 +1658,22 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#050505]/90 backdrop-blur-md flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-[#050505]/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.95, y: 30 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 30 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="bg-zinc-950 border border-zinc-900 p-8 rounded-xl w-full max-w-md space-y-6 relative"
+              className="bg-zinc-950 border border-zinc-900 p-5 sm:p-8 rounded-xl w-full max-w-md space-y-4 sm:space-y-6 relative max-h-[90vh] overflow-y-auto"
             >
               <button
+                type="button"
                 onClick={() => setIsPortalOpen(false)}
-                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
+                className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2.5 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-white transition-all shadow-md z-30 focus:outline-none active:scale-95"
+                aria-label="Close portal modal"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               <div className="space-y-1.5 text-center">
@@ -1731,30 +1785,32 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#050505]/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 z-50 bg-[#050505]/90 backdrop-blur-md flex items-start sm:items-center justify-center p-2.5 sm:p-6 overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="bg-zinc-950 border border-zinc-900 p-8 rounded-xl w-full max-w-4xl space-y-6 relative my-8"
+              className="bg-zinc-950 border border-zinc-900 p-4 sm:p-8 rounded-xl w-full max-w-4xl space-y-4 sm:space-y-6 relative my-auto max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl"
             >
               <button
+                type="button"
                 onClick={() => setSelectedRental(null)}
-                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
+                className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2.5 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-white transition-all shadow-lg z-30 focus:outline-none active:scale-95"
+                aria-label="Close booking modal"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1 pr-10 flex-shrink-0">
                 <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase">
                   Lease Request Form
                 </span>
-                <h4 className="text-2xl font-bold tracking-tight text-white">
+                <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                   {selectedRental.name}
                 </h4>
-                <p className="text-xs text-zinc-400">
+                <p className="text-[11px] sm:text-xs text-zinc-400">
                   {selectedRental.rate} · Minimal cinematic footprint
                 </p>
               </div>
@@ -1763,22 +1819,25 @@ export default function App() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="py-12 flex flex-col items-center justify-center space-y-4 text-center"
+                  className="py-8 sm:py-12 flex flex-col items-center justify-center space-y-4 text-center"
                 >
-                  <CheckCircle className="w-12 h-12 text-emerald-400" />
+                  <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-400" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-white uppercase tracking-wider">
+                    <p className="text-xs sm:text-sm font-semibold text-white uppercase tracking-wider">
                       Request Received
                     </p>
-                    <p className="text-xs text-zinc-500 max-w-xs">
+                    <p className="text-[11px] sm:text-xs text-zinc-500 max-w-xs">
                       We have reserved your gear block. Access your lease
                       metrics directly inside your client portal dashboard.
                     </p>
                   </div>
                 </motion.div>
               ) : (
-                <form onSubmit={handleRentalSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <form
+                  onSubmit={handleRentalSubmit}
+                  className="space-y-4 sm:space-y-6 overflow-y-auto pr-1 flex-1"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 items-start">
                     {/* Left Panel: Contact Inputs & Interactive Receipt */}
                     <div className="space-y-4">
                       <div className="space-y-1">
@@ -1838,20 +1897,81 @@ export default function App() {
                         />
                       </div>
 
+                      {/* Identity Card (IC) / MyKad Upload Field */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">
+                          Upload Identity Card (MyKad / Passport) <span className="text-emerald-400">* Required</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            id="ic-upload-input"
+                            required
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                setRentalForm((prev) => ({
+                                  ...prev,
+                                  icFile: file,
+                                  icFileName: file.name,
+                                }));
+                              }
+                            }}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="ic-upload-input"
+                            className={`w-full flex items-center justify-between bg-zinc-900 border ${
+                              rentalForm.icFile
+                                ? "border-emerald-500/50 bg-emerald-950/20"
+                                : "border-zinc-800 hover:border-zinc-600"
+                            } rounded-lg px-4 py-2.5 text-xs cursor-pointer transition-all duration-200 group`}
+                          >
+                            <div className="flex items-center space-x-2.5 overflow-hidden pr-2">
+                              {rentalForm.icFile ? (
+                                <FileCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                              ) : (
+                                <Upload className="w-4 h-4 text-zinc-500 group-hover:text-white flex-shrink-0 transition-colors" />
+                              )}
+                              <span
+                                className={`truncate ${
+                                  rentalForm.icFile
+                                    ? "text-emerald-300 font-medium"
+                                    : "text-zinc-500"
+                                }`}
+                              >
+                                {rentalForm.icFile
+                                  ? rentalForm.icFileName
+                                  : "Upload MyKad / IC Copy (Image / PDF)"}
+                              </span>
+                            </div>
+                            {rentalForm.icFile ? (
+                              <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex-shrink-0">
+                                Attached
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-mono text-zinc-400 group-hover:text-white uppercase tracking-wider flex-shrink-0">
+                                Browse
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                        <p className="text-[9px] text-zinc-500 italic">
+                          * Direct encrypted submission for equipment security verification.
+                        </p>
+                      </div>
+
                       {/* Dynamic Pricing Estimate Receipt in MYR (RM) */}
                       {(() => {
-                        const dailyRate = parseInt(
-                          selectedRental.rate.replace(/[^0-9]/g, ""),
-                          10,
-                        );
                         const days = getDurationDays(
                           rentalForm.startDate,
                           rentalForm.endDate,
                         );
-                        const subtotal = dailyRate * days;
-                        const damageWaiver = 30.0;
-                        const securityDeposit = 300.0;
-                        const estimatedTotal = subtotal + damageWaiver;
+                        const { dailyRate, subtotal, isDiscounted } =
+                          calculateRentalPricing(selectedRental, days);
+                        const securityDeposit = selectedRental?.deposit || 50.0;
+                        const estimatedTotal = subtotal;
 
                         const formatNiceDate = (d) => {
                           if (!d) return "Select below";
@@ -1893,18 +2013,20 @@ export default function App() {
                               </span>
                             </div>
                             <div className="border-t border-dashed border-zinc-900 my-1"></div>
-                            <div className="flex justify-between">
-                              <span>
-                                Base Rate ({selectedRental.rate} × {days} days)
-                              </span>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span>
+                                  Base Rate (RM {dailyRate} × {days}{" "}
+                                  {days === 1 ? "day" : "days"})
+                                </span>
+                                {isDiscounted && (
+                                  <span className="block text-[9px] text-emerald-400 font-sans mt-0.5">
+                                    ★ Promo Rate Applied (&gt;3 Days @ RM50/day)
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-zinc-200">
                                 RM {subtotal.toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Loss &amp; Damage Protection (Flat)</span>
-                              <span className="text-zinc-200">
-                                RM {damageWaiver.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex justify-between text-zinc-500">
@@ -1949,7 +2071,14 @@ export default function App() {
                     </p>
                     <button
                       type="submit"
-                      disabled={!rentalForm.startDate || !rentalForm.endDate}
+                      disabled={
+                        !rentalForm.startDate ||
+                        !rentalForm.endDate ||
+                        !rentalForm.name ||
+                        !rentalForm.email ||
+                        !rentalForm.phone ||
+                        !rentalForm.icFile
+                      }
                       className="w-full sm:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-lg text-xs uppercase tracking-widest font-bold transition-all duration-300"
                     >
                       Submit Lease Request
