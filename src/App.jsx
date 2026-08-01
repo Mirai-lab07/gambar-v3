@@ -27,8 +27,9 @@ import {
   User,
   Eye,
   Award,
-  Upload,
-  FileCheck,
+  Slash,
+  Minus,
+  Plus,
 } from "lucide-react";
 
 // Curated premium photographs including local Heritage captures
@@ -272,15 +273,48 @@ const GEAR_ITEMS = [
 ];
 
 // Helper function for dynamic pricing calculations (e.g. tiered discounts)
-const calculateRentalPricing = (rental, days) => {
+const calculateRentalPricing = (
+  rental,
+  days,
+  kit = "Standard Kit",
+  quantity = 1,
+  size = "4R",
+) => {
   if (!rental) return { dailyRate: 0, subtotal: 0, isDiscounted: false };
+
+  // Pricing logic for Printing Service
+  if (rental.id === "r4") {
+    let basePricePerPrint = 2; // Default 4R (RM 2)
+    if (size === "5R") {
+      basePricePerPrint = 3; // 5R (RM 3)
+    } else if (size === "A4") {
+      basePricePerPrint = 10; // A4 (RM 10)
+    }
+
+    const subtotal = basePricePerPrint * quantity;
+    const isDiscounted = quantity >= 10; // Bulk discount for 10+ prints
+    return { dailyRate: basePricePerPrint, subtotal, isDiscounted };
+  }
+
   let dailyRate = parseInt(rental.rate.replace(/[^0-9]/g, ""), 10);
   let isDiscounted = false;
 
-  // Custom discount logic: r3 Insta360 X4 Air set gets RM50/day if rented for > 3 days
-  if (rental.id === "r3" && days > 3) {
-    dailyRate = 50;
-    isDiscounted = true;
+  const isInsta360 =
+    rental.id === "r3" || rental.name?.toLowerCase().includes("insta360");
+
+  if (isInsta360) {
+    if (kit === "Standard Kit") {
+      dailyRate = 45; // Standard Kit murah sikit (RM 45/day)
+    } else if (kit === "Travel Kit") {
+      dailyRate = 60; // Travel Kit (RM 60/day)
+    } else if (kit === "Sport Kit") {
+      dailyRate = 65; // Sport Kit (RM 65/day)
+    }
+
+    if (days > 3) {
+      dailyRate = Math.max(35, dailyRate - 10);
+      isDiscounted = true;
+    }
   }
 
   const subtotal = dailyRate * days;
@@ -295,6 +329,7 @@ const RENTAL_ITEMS = [
     subtitle: "Classic DX Format Simplicity & Character",
     type: "Camera System",
     rate: "RM 30 / day",
+    isAvailable: false, // Marked as not available as per user request
     desc: "Experience the highly balanced DX format sensor with standard kit optic. It serves as an excellent low-profile, highly tactile street setup for local explorations.",
     lensIncluded: "AF-S DX NIKKOR 18-55mm f/3.5-5.6G VR",
     specs: [
@@ -312,6 +347,7 @@ const RENTAL_ITEMS = [
     subtitle: "f/4-5.6D ED Architecture & Reach",
     type: "Precision Optic",
     rate: "RM 60 / day",
+    isAvailable: true,
     desc: "A highly acclaimed lightweight telephoto lens, prized for its mechanical aperture ring and authentic rendering. Perfect for high-compression urban designs.",
     lensIncluded: "Inherent mechanical focusing & aperture mechanics",
     specs: [
@@ -327,17 +363,38 @@ const RENTAL_ITEMS = [
     name: "Insta360 X4 Air Set",
     subtitle: "8K 360 Action Camera & Dynamic Rig",
     type: "360 Action Camera",
-    rate: "RM 60 / day",
-    promoNote: ">3 hari: RM 50/day",
-    desc: "Complete spherical 8K video capture system with FlowState stabilization and invisible selfie stick. Special discounted rate of RM 50/day applies for rentals longer than 3 days.",
+    rate: "Dari RM 45 / day",
+    isAvailable: true,
+    promoNote: "Standard: RM45 | Travel: RM60 | Sport: RM65",
+    desc: "Complete spherical 8K video capture system with FlowState stabilization. Choose between Standard, Travel, and Sport kit packages.",
     lensIncluded: "Dual 360° lens array with optical guards",
     specs: [
-      "8K 360° Video & FlowState Stabilization",
-      "Invisible Selfie Stick & Mount Kit",
-      "Promo: RM 50/day for > 3 days rental",
-      "Includes 2x Batteries & 64GB Card",
+      "Standard Kit (RM45): 1x Camera, 1x Bateri & Case",
+      "Travel Kit (RM60): 2x Bateri, 80cm Invisible Stick & Case",
+      "Sport Kit (RM65): Action Mount, 2x Bateri & Case",
+      "Semua Pakej: Charger, 64GB SD, Lens Cloth, Pouch",
     ],
     image:
+      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    id: "r4",
+    name: "Premium Photo Printing Service",
+    subtitle: "High-End Matte or Glossy Photo Prints",
+    type: "Printing Service",
+    rate: "Dari RM 2 / print",
+    isAvailable: true,
+    desc: "Cetak gambar kegemaran anda dengan kualiti makmal foto profesional. Sesuai untuk gambar potret, landskap, atau kenangan keluarga dengan kertas foto premium kalis air.",
+    lensIncluded: "Pilihan saiz 4R, 5R, atau A4 dengan kemasan berkualiti tinggi",
+    specs: [
+      "Kertas foto Ultra Premium Glossy/Matte (260gsm)",
+      "Dakwat kalis luntur & kalis air (Tahan sehingga 100 tahun)",
+      "Pilihan bingkai minimalis (pilihan tambahan)",
+      "Penghantaran pantas ke seluruh Malaysia / pickup di studio",
+    ],
+    image: "/image/_DSC0196.jpg",
+  },
+];
       "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
   },
 ];
@@ -598,13 +655,41 @@ export default function App() {
     name: "",
     email: "",
     phone: "",
-    icFile: null,
-    icFileName: "",
     startDate: null,
     endDate: null,
+    selectedKit: "Standard Kit",
+    printSize: "4R",
+    printPaperType: "Glossy",
+    printQuantity: 5,
+    agreedToTerms: false,
   });
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [rentalSuccess, setRentalSuccess] = useState(false);
   const [bookingsList, setBookingsList] = useState([]);
+
+  // Form Reset Logic after success
+  useEffect(() => {
+    if (rentalSuccess) {
+      const timer = setTimeout(() => {
+        setRentalSuccess(false);
+        setSelectedRental(null);
+        setRentalForm({
+          name: "",
+          email: "",
+          phone: "",
+          startDate: null,
+          endDate: null,
+          selectedKit: "Standard Kit",
+          printSize: "4R",
+          printPaperType: "Glossy",
+          printQuantity: 5,
+          agreedToTerms: false,
+        });
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [rentalSuccess]);
 
   // Mouse vector tracking
   const [mousePos, setMousePos] = useState({ x: -100, y: -100 });
@@ -659,18 +744,18 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Preset default dates when rental items are updated/selected
+  // Preset default dates when rental items are updated/selected (Default 1 day lease)
   useEffect(() => {
     if (selectedRental) {
       const today = new Date();
-      const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 3);
 
       const timer = setTimeout(() => {
         setRentalForm((prev) => ({
           ...prev,
           startDate: today,
-          endDate: tomorrow,
+          endDate: today,
+          selectedKit: "Standard Kit",
+          agreedToTerms: false,
         }));
       }, 0);
       return () => clearTimeout(timer);
@@ -758,14 +843,28 @@ export default function App() {
   const handleRentalSubmit = (e) => {
     e.preventDefault();
 
-    if (!rentalForm.startDate || !rentalForm.endDate || !rentalForm.icFile) {
+    if (
+      !rentalForm.startDate ||
+      !rentalForm.endDate ||
+      !rentalForm.name ||
+      !rentalForm.email ||
+      !rentalForm.phone ||
+      !rentalForm.agreedToTerms
+    ) {
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const executeRentalSubmission = () => {
     const days = getDurationDays(rentalForm.startDate, rentalForm.endDate);
-    const { dailyRate, subtotal } = calculateRentalPricing(
+    const { subtotal } = calculateRentalPricing(
       selectedRental,
       days,
+      rentalForm.selectedKit,
+      rentalForm.printQuantity,
+      rentalForm.printSize,
     );
     const finalCost = subtotal;
 
@@ -780,14 +879,25 @@ export default function App() {
       day: "numeric",
     });
 
+    const isInsta360 =
+      selectedRental.id === "r3" ||
+      selectedRental.name?.toLowerCase().includes("insta360");
+    const isPrinting = selectedRental.id === "r4";
+
     const newBooking = {
       id: Math.random().toString(36).substring(7),
       equipmentName: selectedRental.name,
-      duration: `${days} Days`,
-      date: `${formattedStart} to ${formattedEnd}`,
+      selectedKit: isInsta360
+        ? rentalForm.selectedKit || "Standard Kit"
+        : isPrinting
+          ? `${rentalForm.printSize} (${rentalForm.printPaperType}) × ${rentalForm.printQuantity} pcs`
+          : null,
+      duration: isPrinting ? `${rentalForm.printQuantity} pcs` : `${days} Days`,
+      date: isPrinting
+        ? formattedStart
+        : `${formattedStart} to ${formattedEnd}`,
       rate: selectedRental.rate,
       totalCost: `RM ${finalCost.toFixed(2)}`,
-      icAttached: rentalForm.icFileName || "Verified Copy",
       status: "Processing Verification",
     };
 
@@ -796,41 +906,50 @@ export default function App() {
 
     // WhatsApp Automation - Opens in new tab with pre-filled details
     const adminWhatsApp = "601123180399"; // Replace with your actual WhatsApp number
+
+    let detailsText = "";
+    if (isInsta360) {
+      detailsText = `*Selected Kit:* ${rentalForm.selectedKit || "Standard Kit"}%0A`;
+    } else if (isPrinting) {
+      detailsText = `*Print Specs:* Size ${rentalForm.printSize}, ${rentalForm.printPaperType} Finish%0A*Quantity:* ${rentalForm.printQuantity} pcs%0A`;
+    }
+
+    const durationLabel = isPrinting
+      ? `*Pickup Date:* ${formattedStart}`
+      : `*Duration:* ${days} Days%0A*Date:* ${formattedStart} to ${formattedEnd}`;
+
     const message =
-      `*NEW LEASE REQUEST*%0A%0A` +
-      `*Equipment:* ${selectedRental.name}%0A` +
+      `*NEW ${isPrinting ? "PRINTING" : "LEASE"} REQUEST*%0A%0A` +
+      `*Service/Equipment:* ${selectedRental.name}%0A` +
+      detailsText +
       `*Client:* ${rentalForm.name}%0A` +
       `*Email:* ${rentalForm.email}%0A` +
       `*Phone:* ${rentalForm.phone}%0A` +
-      `*IC Document:* ${rentalForm.icFileName || "Attached"}%0A` +
-      `*Duration:* ${days} Days%0A` +
-      `*Date:* ${formattedStart} to ${formattedEnd}%0A` +
+      durationLabel +
+      "%0A" +
       `*Total Cost:* RM ${finalCost.toFixed(2)}%0A%0A` +
+      (isPrinting
+        ? `_Syarat Cetakan: Sila hantar fail gambar beresolusi tinggi ke emel/WhatsApp studio kami._%0A%0A`
+        : `_Syarat Pickup: Sediakan Salinan IC (Depan & Belakang), Alamat Terkini & Media Sosial Aktif._%0A%0A`) +
       `_Submitted via Mirul Studio Booking Portal_`;
 
     window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
-
-    setTimeout(() => {
-      setRentalSuccess(false);
-      setSelectedRental(null);
-      setRentalForm({
-        name: "",
-        email: "",
-        phone: "",
-        icFile: null,
-        icFileName: "",
-        startDate: null,
-        endDate: null,
-      });
-    }, 2500);
   };
 
   const updateSelectedDates = (start, end) => {
-    setRentalForm((prev) => ({
-      ...prev,
-      startDate: start,
-      endDate: end,
-    }));
+    if (selectedRental?.id === "r4") {
+      setRentalForm((prev) => ({
+        ...prev,
+        startDate: start,
+        endDate: start,
+      }));
+    } else {
+      setRentalForm((prev) => ({
+        ...prev,
+        startDate: start,
+        endDate: end,
+      }));
+    }
   };
 
   return (
@@ -1214,6 +1333,11 @@ export default function App() {
                           <div>
                             <p className="text-xs font-bold text-white">
                               {b.equipmentName}
+                              {b.selectedKit && (
+                                <span className="ml-2 text-[9px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+                                  {b.selectedKit}
+                                </span>
+                              )}
                             </p>
                             <p className="text-[10px] text-zinc-400 font-mono">
                               {b.date}
@@ -1556,6 +1680,14 @@ export default function App() {
                       {item.type}
                     </span>
                   </div>
+
+                  {item.isAvailable === false && (
+                    <div className="absolute top-4 right-4 bg-red-950/90 backdrop-blur-md px-3 py-1 rounded-full border border-red-500/30">
+                      <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest font-semibold">
+                        Not Available
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-8 flex flex-col justify-between flex-1 space-y-6">
@@ -1595,13 +1727,23 @@ export default function App() {
                       ))}
                     </div>
 
-                    <button
-                      onClick={() => setSelectedRental(item)}
-                      className="w-full py-2.5 bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-800 hover:border-white rounded-lg text-xs uppercase tracking-widest font-semibold transition-all duration-300 interactive-item flex items-center justify-center space-x-2"
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Request Booking</span>
-                    </button>
+                    {item.isAvailable === false ? (
+                      <button
+                        disabled
+                        className="w-full py-2.5 bg-zinc-950 text-zinc-600 border border-zinc-900 rounded-lg text-xs uppercase tracking-widest font-semibold cursor-not-allowed flex items-center justify-center space-x-2"
+                      >
+                        <Slash className="w-3.5 h-3.5 text-red-500/60" />
+                        <span className="text-zinc-500">Temporarily Closed</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setSelectedRental(item)}
+                        className="w-full py-2.5 bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-800 hover:border-white rounded-lg text-xs uppercase tracking-widest font-semibold transition-all duration-300 interactive-item flex items-center justify-center space-x-2"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Request Booking</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -1805,13 +1947,17 @@ export default function App() {
 
               <div className="space-y-1 pr-10 flex-shrink-0">
                 <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase">
-                  Lease Request Form
+                  {selectedRental.id === "r4"
+                    ? "Photo Printing Request Form"
+                    : "Lease Request Form"}
                 </span>
                 <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
                   {selectedRental.name}
                 </h4>
                 <p className="text-[11px] sm:text-xs text-zinc-400">
-                  {selectedRental.rate} · Minimal cinematic footprint
+                  {selectedRental.id === "r4"
+                    ? "Premium Photo Prints · Pro Grade Quality"
+                    : `${selectedRental.rate} · Minimal cinematic footprint`}
                 </p>
               </div>
 
@@ -1827,8 +1973,9 @@ export default function App() {
                       Request Received
                     </p>
                     <p className="text-[11px] sm:text-xs text-zinc-500 max-w-xs">
-                      We have reserved your gear block. Access your lease
-                      metrics directly inside your client portal dashboard.
+                      {selectedRental.id === "r4"
+                        ? "We have received your printing request. Sila hantar fail gambar anda melalui WhatsApp/Email untuk tindakan segera."
+                        : "We have reserved your gear block. Access your lease metrics directly inside your client portal dashboard."}
                     </p>
                   </div>
                 </motion.div>
@@ -1897,70 +2044,188 @@ export default function App() {
                         />
                       </div>
 
-                      {/* Identity Card (IC) / MyKad Upload Field */}
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">
-                          Upload Identity Card (MyKad / Passport) <span className="text-emerald-400">* Required</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            id="ic-upload-input"
-                            required
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                setRentalForm((prev) => ({
-                                  ...prev,
-                                  icFile: file,
-                                  icFileName: file.name,
-                                }));
-                              }
-                            }}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="ic-upload-input"
-                            className={`w-full flex items-center justify-between bg-zinc-900 border ${
-                              rentalForm.icFile
-                                ? "border-emerald-500/50 bg-emerald-950/20"
-                                : "border-zinc-800 hover:border-zinc-600"
-                            } rounded-lg px-4 py-2.5 text-xs cursor-pointer transition-all duration-200 group`}
-                          >
-                            <div className="flex items-center space-x-2.5 overflow-hidden pr-2">
-                              {rentalForm.icFile ? (
-                                <FileCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                              ) : (
-                                <Upload className="w-4 h-4 text-zinc-500 group-hover:text-white flex-shrink-0 transition-colors" />
-                              )}
-                              <span
-                                className={`truncate ${
-                                  rentalForm.icFile
-                                    ? "text-emerald-300 font-medium"
-                                    : "text-zinc-500"
-                                }`}
-                              >
-                                {rentalForm.icFile
-                                  ? rentalForm.icFileName
-                                  : "Upload MyKad / IC Copy (Image / PDF)"}
+                      {/* Insta360 X4 Air Kit Selection Option */}
+                      {selectedRental &&
+                        (selectedRental.id === "r3" ||
+                          selectedRental.name
+                            ?.toLowerCase()
+                            .includes("insta360")) && (
+                          <div className="space-y-2 pt-2 border-t border-zinc-900">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
+                                Pilihan Kit Insta360 X4 Air{" "}
+                                <span className="text-emerald-400">
+                                  * Required
+                                </span>
+                              </label>
+                              <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                {rentalForm.selectedKit || "Standard Kit"}
                               </span>
                             </div>
-                            {rentalForm.icFile ? (
-                              <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex-shrink-0">
-                                Attached
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                {
+                                  id: "Standard Kit",
+                                  name: "Standard Kit",
+                                  price: "RM 45/day",
+                                  desc: "1x Camera, 1x Bateri & Case",
+                                },
+                                {
+                                  id: "Travel Kit",
+                                  name: "Travel Kit",
+                                  price: "RM 60/day",
+                                  desc: "2x Bateri, 80cm Stick & Case",
+                                },
+                                {
+                                  id: "Sport Kit",
+                                  name: "Sport Kit",
+                                  price: "RM 65/day",
+                                  desc: "Action Mount, 2x Bateri & Case",
+                                },
+                              ].map((kit) => {
+                                const isSelected =
+                                  (rentalForm.selectedKit || "Standard Kit") ===
+                                  kit.id;
+                                return (
+                                  <button
+                                    key={kit.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setRentalForm((prev) => ({
+                                        ...prev,
+                                        selectedKit: kit.id,
+                                      }))
+                                    }
+                                    className={`p-2.5 rounded-lg border text-left transition-all duration-200 flex flex-col justify-between ${
+                                      isSelected
+                                        ? "bg-emerald-950/30 border-emerald-500 text-white shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30"
+                                        : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold tracking-tight text-white block">
+                                          {kit.name}
+                                        </span>
+                                        {isSelected && (
+                                          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+                                        )}
+                                      </div>
+                                      <span className="text-[9px] text-emerald-400 font-mono font-semibold block mt-0.5">
+                                        {kit.price}
+                                      </span>
+                                      <span className="text-[9px] text-zinc-500 font-mono leading-tight block mt-1">
+                                        {kit.desc}
+                                      </span>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="text-[9px] text-zinc-500 italic pt-0.5">
+                              * Semua pakej dilengkapi: Charger, Lens Cloth,
+                              MicroSD 64GB &amp; Protective Pouch.
+                            </p>
+                          </div>
+                        )}
+
+                      {/* Printing Service Configuration Options */}
+                      {selectedRental && selectedRental.id === "r4" && (
+                        <div className="space-y-4 pt-2 border-t border-zinc-900">
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
+                              Saiz Cetakan <span className="text-emerald-400">*</span>
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { label: "4R (RM 2)", value: "4R" },
+                                { label: "5R (RM 3)", value: "5R" },
+                                { label: "A4 (RM 10)", value: "A4" },
+                              ].map((sz) => (
+                                <button
+                                  key={sz.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setRentalForm((prev) => ({
+                                      ...prev,
+                                      printSize: sz.value,
+                                    }))
+                                  }
+                                  className={`py-2 px-3 border rounded-lg text-xs font-mono transition-all uppercase ${
+                                    rentalForm.printSize === sz.value
+                                      ? "bg-white text-black border-white font-bold"
+                                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                  }`}
+                                >
+                                  {sz.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
+                              Kemasan Kertas <span className="text-emerald-400">*</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {["Glossy", "Matte"].map((pf) => (
+                                <button
+                                  key={pf}
+                                  type="button"
+                                  onClick={() =>
+                                    setRentalForm((prev) => ({
+                                      ...prev,
+                                      printPaperType: pf,
+                                    }))
+                                  }
+                                  className={`py-2 px-3 border rounded-lg text-xs font-mono transition-all ${
+                                    rentalForm.printPaperType === pf
+                                      ? "bg-white text-black border-white font-bold"
+                                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                  }`}
+                                >
+                                  {pf}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
+                              Bilangan Cetakan (Keping) <span className="text-emerald-400">*</span>
+                            </label>
+                            <div className="flex items-center space-x-3 bg-zinc-900 border border-zinc-800 rounded-lg p-1 max-w-[160px]">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRentalForm((prev) => ({
+                                    ...prev,
+                                    printQuantity: Math.max(1, prev.printQuantity - 1),
+                                  }))
+                                }
+                                className="w-8 h-8 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-sm"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="flex-1 text-center text-xs font-bold font-mono text-white">
+                                {rentalForm.printQuantity} pcs
                               </span>
-                            ) : (
-                              <span className="text-[9px] font-mono text-zinc-400 group-hover:text-white uppercase tracking-wider flex-shrink-0">
-                                Browse
-                              </span>
-                            )}
-                          </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRentalForm((prev) => ({
+                                    ...prev,
+                                    printQuantity: prev.printQuantity + 1,
+                                  }))
+                                }
+                                className="w-8 h-8 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-sm"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-[9px] text-zinc-500 italic">
-                          * Direct encrypted submission for equipment security verification.
-                        </p>
-                      </div>
+                      )}
 
                       {/* Dynamic Pricing Estimate Receipt in MYR (RM) */}
                       {(() => {
@@ -1969,12 +2234,21 @@ export default function App() {
                           rentalForm.endDate,
                         );
                         const { dailyRate, subtotal, isDiscounted } =
-                          calculateRentalPricing(selectedRental, days);
-                        const securityDeposit = selectedRental?.deposit || 50.0;
+                          calculateRentalPricing(
+                            selectedRental,
+                            days,
+                            rentalForm.selectedKit,
+                            rentalForm.printQuantity,
+                            rentalForm.printSize,
+                          );
+                        const isPrinting = selectedRental.id === "r4";
+                        const securityDeposit = isPrinting
+                          ? 0.0
+                          : selectedRental?.deposit || 50.0;
                         const estimatedTotal = subtotal;
 
                         const formatNiceDate = (d) => {
-                          if (!d) return "Select below";
+                          if (!d) return "Select date";
                           return d.toLocaleDateString("en-MY", {
                             month: "short",
                             day: "numeric",
@@ -1985,43 +2259,78 @@ export default function App() {
                         return (
                           <div className="bg-[#09090b] border border-zinc-900 rounded-lg p-5 space-y-3 font-mono text-[11px] text-zinc-400">
                             <div className="flex justify-between text-zinc-500 uppercase tracking-widest text-[9px] border-b border-zinc-900 pb-2">
-                              <span>Lease Invoice Estimate</span>
+                              <span>
+                                {isPrinting
+                                  ? "Printing Order Estimate"
+                                  : "Lease Invoice Estimate"}
+                              </span>
                               <span>MYR (RM)</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-[10px]">
                               <div>
                                 <span className="block text-[8px] uppercase text-zinc-600">
-                                  Start Date
+                                  {isPrinting ? "Pickup Date" : "Start Date"}
                                 </span>
                                 <span className="text-zinc-200">
                                   {formatNiceDate(rentalForm.startDate)}
                                 </span>
                               </div>
-                              <div>
-                                <span className="block text-[8px] uppercase text-zinc-600">
-                                  End Date
-                                </span>
-                                <span className="text-zinc-200">
-                                  {formatNiceDate(rentalForm.endDate)}
+                              {!isPrinting && (
+                                <div>
+                                  <span className="block text-[8px] uppercase text-zinc-600">
+                                    End Date
+                                  </span>
+                                  <span className="text-zinc-200">
+                                    {formatNiceDate(rentalForm.endDate)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {!isPrinting && (
+                              <div className="flex justify-between">
+                                <span>Calculated Duration</span>
+                                <span className="text-zinc-200 font-bold">
+                                  {days} {days === 1 ? "Day" : "Days"}
                                 </span>
                               </div>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Calculated Duration</span>
-                              <span className="text-zinc-200 font-bold">
-                                {days} {days === 1 ? "Day" : "Days"}
-                              </span>
-                            </div>
+                            )}
                             <div className="border-t border-dashed border-zinc-900 my-1"></div>
+                            {selectedRental &&
+                              (selectedRental.id === "r3" ||
+                                selectedRental.name
+                                  ?.toLowerCase()
+                                  .includes("insta360")) && (
+                                <div className="flex justify-between text-zinc-300">
+                                  <span>Selected Kit Package</span>
+                                  <span className="text-emerald-400 font-bold">
+                                    {rentalForm.selectedKit || "Standard Kit"}{" "}
+                                    (RM {dailyRate}/day)
+                                  </span>
+                                </div>
+                              )}
+                            {isPrinting && (
+                              <div className="flex justify-between text-zinc-300">
+                                <span>Selected Specs</span>
+                                <span className="text-emerald-400 font-bold">
+                                  {rentalForm.printSize} (
+                                  {rentalForm.printPaperType}) ×{" "}
+                                  {rentalForm.printQuantity} pcs
+                                </span>
+                              </div>
+                            )}
                             <div className="flex justify-between items-start">
                               <div>
                                 <span>
-                                  Base Rate (RM {dailyRate} × {days}{" "}
-                                  {days === 1 ? "day" : "days"})
+                                  {isPrinting
+                                    ? `Unit Rate (RM ${dailyRate} × ${rentalForm.printQuantity} pcs)`
+                                    : `Base Rate (RM ${dailyRate} × ${days} ${days === 1 ? "day" : "days"})`}
                                 </span>
                                 {isDiscounted && (
                                   <span className="block text-[9px] text-emerald-400 font-sans mt-0.5">
-                                    ★ Promo Rate Applied (&gt;3 Days @ RM50/day)
+                                    ★{" "}
+                                    {isPrinting
+                                      ? "Bulk Printing Discount Applied (10+ pcs)"
+                                      : "Promo Rate Applied (>3 Days @ RM50/day)"}
                                   </span>
                                 )}
                               </div>
@@ -2030,21 +2339,25 @@ export default function App() {
                               </span>
                             </div>
                             <div className="flex justify-between text-zinc-500">
-                              <span>Refundable Security Deposit</span>
+                              <span>
+                                {isPrinting
+                                  ? "Service Handling Fee"
+                                  : "Refundable Security Deposit"}
+                              </span>
                               <span>RM {securityDeposit.toFixed(2)}</span>
                             </div>
                             <div className="border-t border-dashed border-zinc-800 pt-3 flex justify-between text-xs font-bold text-white">
                               <span className="uppercase tracking-wider">
-                                Estimated Total
+                                {isPrinting ? "Total Order" : "Estimated Total"}
                               </span>
                               <span className="text-emerald-400 font-mono text-sm">
                                 RM {estimatedTotal.toFixed(2)}
                               </span>
                             </div>
                             <p className="text-[9px] text-zinc-500 leading-normal italic pt-1 text-center">
-                              * Refundable deposit of RM{" "}
-                              {securityDeposit.toFixed(2)} authorized upon
-                              pickup verification.
+                              {isPrinting
+                                ? "* Sila hantar fail gambar beresolusi tinggi ke emel/WhatsApp studio kami selepas tempahan."
+                                : `* Refundable deposit of RM ${securityDeposit.toFixed(2)} authorized upon pickup verification.`}
                             </p>
                           </div>
                         );
@@ -2054,13 +2367,50 @@ export default function App() {
                     {/* Right Panel: Custom Premium Glassmorphic Calendar Picker */}
                     <div className="space-y-3">
                       <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block text-center md:text-left">
-                        Select Lease Range (Tap Start &amp; End Dates)
+                        {selectedRental?.id === "r4"
+                          ? "Select Target Pickup Date"
+                          : "Select Lease Range (Tap Start & End Dates)"}
                       </label>
                       <CustomGlassCalendar
                         startDate={rentalForm.startDate}
                         endDate={rentalForm.endDate}
                         onChange={updateSelectedDates}
                       />
+                    </div>
+                  </div>
+
+                  {/* Terms & Conditions Agreement Checkbox */}
+                  <div className="pt-3 border-t border-zinc-900 space-y-2">
+                    <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-3">
+                      <label className="flex items-start space-x-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          required
+                          checked={rentalForm.agreedToTerms}
+                          onChange={(e) =>
+                            setRentalForm((prev) => ({
+                              ...prev,
+                              agreedToTerms: e.target.checked,
+                            }))
+                          }
+                          className="mt-0.5 w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/30 accent-emerald-500 cursor-pointer"
+                        />
+                        <span className="text-[11px] text-zinc-300 group-hover:text-white transition-colors leading-relaxed">
+                          Saya telah membaca, memahami &amp; bersetuju dengan{" "}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowTermsModal(true);
+                            }}
+                            className="text-emerald-400 underline hover:text-emerald-300 font-semibold inline-flex items-center gap-0.5"
+                          >
+                            Terma &amp; Syarat Sewaan Peralatan (Terms &amp;
+                            Conditions)
+                            <ArrowUpRight className="w-3 h-3 inline" />
+                          </button>
+                        </span>
+                      </label>
                     </div>
                   </div>
 
@@ -2077,15 +2427,347 @@ export default function App() {
                         !rentalForm.name ||
                         !rentalForm.email ||
                         !rentalForm.phone ||
-                        !rentalForm.icFile
+                        !rentalForm.agreedToTerms
                       }
-                      className="w-full sm:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-lg text-xs uppercase tracking-widest font-bold transition-all duration-300"
+                      className="w-full sm:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-lg text-xs uppercase tracking-widest font-bold transition-all duration-300 cursor-pointer disabled:cursor-not-allowed"
                     >
                       Submit Lease Request
                     </button>
                   </div>
                 </form>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================
+          TERMS AND CONDITIONS FULL MODAL POPUP
+          ======================================================== */}
+      <AnimatePresence>
+        {showTermsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setShowTermsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-950 border border-zinc-800 p-6 sm:p-8 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl space-y-5"
+            >
+              <div className="flex justify-between items-start border-b border-zinc-900 pb-4">
+                <div>
+                  <span className="text-[9px] font-mono tracking-widest text-emerald-400 uppercase">
+                    Polisi &amp; Peraturan Sewaan Studio
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
+                    Terma &amp; Syarat Sewaan Peralatan (Terms &amp; Conditions)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(false)}
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto pr-2 space-y-4 text-xs text-zinc-300 leading-relaxed font-sans">
+                <div className="bg-emerald-950/20 border border-emerald-500/20 p-3.5 rounded-lg flex items-center space-x-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  <p className="text-[11px] text-emerald-200">
+                    Sila baca terma berikut dengan teliti sebelum melengkapkan
+                    pesanan sewaan anda.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">1.</span>{" "}
+                      Dokumen Wajib Semasa Pickup (IC, Alamat &amp; Media
+                      Sosial)
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      Penyewa{" "}
+                      <strong className="text-white">
+                        WAJIB menyediakan &amp; membawa dokumen berikut semasa
+                        pengambilan (*pickup*) peralatan
+                      </strong>
+                      :<br />
+                      • Salinan MyKad / IC (Depan &amp; Belakang)
+                      <br />
+                      • Alamat Kediaman Terkini (Cth: Bil Utiliti / Lesen /
+                      Dokumen Alamat)
+                      <br />
+                      • Akaun Media Sosial Yang Aktif (Instagram / TikTok /
+                      Facebook dll.)
+                      <br />
+                      <span className="text-emerald-400/90 italic">
+                        * Penyerahan peralatan tidak akan diproses sekiranya
+                        dokumen di atas gagal disediakan.
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">2.</span>{" "}
+                      Waktu Pickup &amp; Pemulangan (9:00 AM - 5:00 PM)
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      Waktu urusan penyerahan (*pickup*) dan pemulangan
+                      (*return*) peralatan adalah dari{" "}
+                      <strong className="text-white">
+                        9:00 AM hingga 5:00 PM sahaja
+                      </strong>{" "}
+                      pada tarikh sewaan. Pemulangan melebihi jam 5:00 PM tanpa
+                      kelulusan awal akan dikira sebagai sewaan hari berikutnya
+                      dan dikenakan caj harian penuh.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">3.</span>{" "}
+                      Bayaran Penuh Sebelum Pickup (Payment Required)
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      Bayaran sewaan penuh (*Rental Fee*) berserta deposit
+                      keselamatan (*Security Deposit*){" "}
+                      <strong className="text-white">
+                        mesti dijelaskan sepenuhnya SEBELUM atau SEMASA waktu
+                        pengambilan peralatan
+                      </strong>
+                      . Peralatan tidak akan diserahkan jika bayaran belum
+                      dijelaskan.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">4.</span>{" "}
+                      Ganti Rugi Kerosakan &amp; Kehilangan (Harga Barang Penuh)
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      Penyewa bertanggungjawab sepenuhnya ke atas keselamatan
+                      peralatan. Sekiranya berlaku kerosakan teruk, kerosakan
+                      cecair/sensor, kecurian, atau kehilangan
+                      peralatan/aksesori, penyewa wajib menggantikan mengikut{" "}
+                      <strong className="text-white">
+                        HARGA BARANG PENUH (Full Retail Market Price)
+                      </strong>{" "}
+                      atau menggantikan dengan unit baharu yang bersesuaian.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">5.</span>{" "}
+                      Polisi Pembatalan Tempahan (Cancellation Policy)
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      • Pembatalan{" "}
+                      <strong className="text-white">lebih 24 jam</strong>{" "}
+                      sebelum tarikh pickup: Pemulangan deposit diproses
+                      sepenuhnya.
+                      <br />• Pembatalan{" "}
+                      <strong className="text-white">
+                        kurang dari 24 jam
+                      </strong>{" "}
+                      dari waktu pickup: Deposit keselamatan (RM50) tidak akan
+                      dipulangkan (*forfeited*) sebagai caj fi pembatalan.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/50 border border-zinc-900 rounded-lg space-y-1">
+                    <h4 className="font-bold text-white flex items-center gap-2">
+                      <span className="text-emerald-400 font-mono">6.</span>{" "}
+                      Deposit Keselamatan &amp; Larangan Sub-Lease
+                    </h4>
+                    <p className="text-zinc-400 text-[11px]">
+                      Deposit keselamatan (RM50) akan dipulangkan sepenuhnya
+                      dalam 24 jam selepas peralatan dipulangkan dalam keadaan
+                      asal. Peralatan hanya untuk kegunaan penyewa yang
+                      mendaftar dan DILARANG sama sekali disewakan semula
+                      (*sub-lease*) kepada pihak ketiga.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-900 flex justify-between items-center">
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  Mirul Studio Rental Terms v2.5
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRentalForm((prev) => ({ ...prev, agreedToTerms: true }));
+                    setShowTermsModal(false);
+                  }}
+                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                >
+                  Faham &amp; Bersetuju (Setuju)
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================
+          BOOKING CONFIRMATION & FINAL T&C RECAP POPUP SCREEN
+          ======================================================== */}
+      <AnimatePresence>
+        {showConfirmModal && selectedRental && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-950 border border-emerald-500/40 p-6 sm:p-8 rounded-2xl w-full max-w-xl flex flex-col shadow-2xl shadow-emerald-950/30 space-y-5 relative"
+            >
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="absolute top-4 right-4 p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="space-y-1 pr-8">
+                <span className="text-[9px] font-mono tracking-widest text-emerald-400 uppercase">
+                  Pengesahan Akhir &amp; Ringkasan Syarat
+                </span>
+                <h3 className="text-xl font-bold text-white tracking-tight">
+                  Pengesahan Tempahan Sewaan
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Sila semak maklumat tempahan &amp; terma utama sebelum
+                  pengesahan dihantar.
+                </p>
+              </div>
+
+              {/* Order Summary Box */}
+              <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-4 space-y-2 text-xs font-mono">
+                <div className="flex justify-between items-center text-white font-bold border-b border-zinc-800 pb-2">
+                  <span>{selectedRental.name}</span>
+                  <span className="text-emerald-400">
+                    RM{" "}
+                    {calculateRentalPricing(
+                      selectedRental,
+                      getDurationDays(rentalForm.startDate, rentalForm.endDate),
+                      rentalForm.selectedKit,
+                    ).subtotal.toFixed(2)}
+                  </span>
+                </div>
+                {(selectedRental.id === "r3" ||
+                  selectedRental.name?.toLowerCase().includes("insta360")) && (
+                  <div className="flex justify-between text-zinc-400 text-[11px]">
+                    <span>Pakej Kit:</span>
+                    <span className="text-zinc-200">
+                      {rentalForm.selectedKit || "Standard Kit"}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-zinc-400 text-[11px]">
+                  <span>Penyewa:</span>
+                  <span className="text-zinc-200">
+                    {rentalForm.name} ({rentalForm.phone})
+                  </span>
+                </div>
+                <div className="flex justify-between text-zinc-400 text-[11px]">
+                  <span>Tempoh:</span>
+                  <span className="text-zinc-200">
+                    {getDurationDays(rentalForm.startDate, rentalForm.endDate)}{" "}
+                    Hari
+                  </span>
+                </div>
+              </div>
+
+              {/* Important T&C Checklist Highlights */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-mono uppercase text-zinc-400 tracking-wider">
+                  ⚠️ Peringatan Syarat Utama Sewaan:
+                </p>
+                <div className="space-y-2 text-[11px] text-zinc-300">
+                  <div className="flex items-start space-x-2 bg-zinc-900/40 p-2.5 rounded-lg border border-zinc-900">
+                    <User className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Syarat Dokumen Pickup:</strong> Wajib sediakan
+                      Salinan IC (Depan &amp; Belakang), Alamat Terkini &amp;
+                      Media Sosial Aktif semasa pickup.
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2 bg-zinc-900/40 p-2.5 rounded-lg border border-zinc-900">
+                    <Clock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Pickup &amp; Pulang (9am - 5pm):</strong> Waktu
+                      urusan terhad 9:00 AM - 5:00 PM sahaja.
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2 bg-zinc-900/40 p-2.5 rounded-lg border border-zinc-900">
+                    <Lock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Bayaran Penuh Sebelum Pickup:</strong> Bayaran
+                      sewaan &amp; deposit RM50 mesti dijelaskan sebelum
+                      penyerahan.
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2 bg-zinc-900/40 p-2.5 rounded-lg border border-zinc-900">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Ganti Rugi Harga Barang Penuh:</strong> Sebarang
+                      kerosakan teruk/kehilangan wajib diganti mengikut nilai
+                      harga pasaran penuh.
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2 bg-zinc-900/40 p-2.5 rounded-lg border border-zinc-900">
+                    <Calendar className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Polisi Pembatalan:</strong> Pembatalan kurang 24
+                      jam sebelum pickup menyebabkan deposit RM50 hangus.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-zinc-900 flex flex-col sm:flex-row gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmModal(false)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Batal / Semak Form
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    executeRentalSubmission();
+                  }}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-lg shadow-emerald-950/50 cursor-pointer flex items-center justify-center space-x-2"
+                >
+                  <span>Sahkan &amp; Hantar Tempahan</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
