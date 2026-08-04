@@ -385,7 +385,8 @@ const RENTAL_ITEMS = [
     rate: "Dari RM 2 / print",
     isAvailable: true,
     desc: "Cetak gambar kegemaran anda dengan kualiti makmal foto profesional. Sesuai untuk gambar potret, landskap, atau kenangan keluarga dengan kertas foto premium kalis air.",
-    lensIncluded: "Pilihan saiz 4R, 5R, atau A4 dengan kemasan berkualiti tinggi",
+    lensIncluded:
+      "Pilihan saiz 4R, 5R, atau A4 dengan kemasan berkualiti tinggi",
     specs: [
       "Kertas foto Ultra Premium Glossy/Matte (260gsm)",
       "Dakwat kalis luntur & kalis air (Tahan sehingga 100 tahun)",
@@ -393,9 +394,6 @@ const RENTAL_ITEMS = [
       "Penghantaran pantas ke seluruh Malaysia / pickup di studio",
     ],
     image: "/image/_DSC0196.jpg",
-  },
-];
-      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
   },
 ];
 
@@ -1733,7 +1731,9 @@ export default function App() {
                         className="w-full py-2.5 bg-zinc-950 text-zinc-600 border border-zinc-900 rounded-lg text-xs uppercase tracking-widest font-semibold cursor-not-allowed flex items-center justify-center space-x-2"
                       >
                         <Slash className="w-3.5 h-3.5 text-red-500/60" />
-                        <span className="text-zinc-500">Temporarily Closed</span>
+                        <span className="text-zinc-500">
+                          Temporarily Closed
+                        </span>
                       </button>
                     ) : (
                       <button
@@ -2001,7 +2001,7 @@ export default function App() {
                               name: e.target.value,
                             })
                           }
-                          placeholder="e.g. Rachel Sterling"
+                          placeholder="e.g. Mirul Studio"
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-600 transition-colors"
                         />
                       </div>
@@ -2020,7 +2020,7 @@ export default function App() {
                               email: e.target.value,
                             })
                           }
-                          placeholder="e.g. rachel@sterling-studios.com"
+                          placeholder="e.g. mirul@mirul-studio.com"
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-600 transition-colors"
                         />
                       </div>
@@ -2134,7 +2134,8 @@ export default function App() {
                         <div className="space-y-4 pt-2 border-t border-zinc-900">
                           <div className="space-y-2">
                             <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
-                              Saiz Cetakan <span className="text-emerald-400">*</span>
+                              Saiz Cetakan{" "}
+                              <span className="text-emerald-400">*</span>
                             </label>
                             <div className="grid grid-cols-3 gap-2">
                               {[
@@ -2165,7 +2166,8 @@ export default function App() {
 
                           <div className="space-y-2">
                             <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
-                              Kemasan Kertas <span className="text-emerald-400">*</span>
+                              Kemasan Kertas{" "}
+                              <span className="text-emerald-400">*</span>
                             </label>
                             <div className="grid grid-cols-2 gap-2">
                               {["Glossy", "Matte"].map((pf) => (
@@ -2192,7 +2194,8 @@ export default function App() {
 
                           <div className="space-y-2">
                             <label className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest block">
-                              Bilangan Cetakan (Keping) <span className="text-emerald-400">*</span>
+                              Bilangan Cetakan (Keping){" "}
+                              <span className="text-emerald-400">*</span>
                             </label>
                             <div className="flex items-center space-x-3 bg-zinc-900 border border-zinc-800 rounded-lg p-1 max-w-[160px]">
                               <button
@@ -2200,7 +2203,10 @@ export default function App() {
                                 onClick={() =>
                                   setRentalForm((prev) => ({
                                     ...prev,
-                                    printQuantity: Math.max(1, prev.printQuantity - 1),
+                                    printQuantity: Math.max(
+                                      1,
+                                      prev.printQuantity - 1,
+                                    ),
                                   }))
                                 }
                                 className="w-8 h-8 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-sm"
