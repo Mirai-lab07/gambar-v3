@@ -30,6 +30,17 @@ import {
   Slash,
   Minus,
   Plus,
+  Printer,
+  Image as ImageIcon,
+  UploadCloud,
+  FileImage,
+  Crop,
+  Sparkles,
+  Package,
+  Palette,
+  Truck,
+  Check,
+  Info,
 } from "lucide-react";
 
 // Curated premium photographs including local Heritage captures
@@ -272,29 +283,127 @@ const GEAR_ITEMS = [
   },
 ];
 
+// Photo Printing Specifications & Pricing Catalog
+const PHOTO_PRINT_SIZES = [
+  {
+    id: "4r",
+    name: "4R Standard Print",
+    dimensions: '4" × 6" (10 × 15 cm)',
+    aspectRatio: "3:2",
+    recommendedRes: "1200 × 1800 px (300 DPI)",
+    basePrice: 2.0,
+    desc: "Saiz album gambar standard & kenangan album pocket.",
+    popularFor: "Album foto, hiasan dinding mini & kenangan",
+    iconTag: "STANDARD",
+    image: "/image/_DSC0196.jpg",
+  },
+  {
+    id: "a4",
+    name: "A4 Fine Art Exhibition",
+    dimensions: '8.3" × 11.7" (21 × 29.7 cm)',
+    aspectRatio: "1.41:1",
+    recommendedRes: "2480 × 3508 px (300 DPI)",
+    basePrice: 10.0,
+    desc: "Cetakan galeri gred pameran dengan tona warna mendalam.",
+    popularFor: "Portfolio artis, pameran galeri & bingkai besar",
+    iconTag: "GALLERY CHOICE",
+    image: "/image/background/_DSC0007.jpg",
+  },
+];
+
+const PRINT_PAPER_TYPES = [
+  {
+    id: "Glossy",
+    name: "Ultra Premium Glossy (260gsm)",
+    extraCost: 0,
+    desc: "Berkilat tinggi, warna vibran & kontras tajam.",
+  },
+  {
+    id: "Matte",
+    name: "Professional Silk / Matte (260gsm)",
+    extraCost: 0,
+    desc: "Kalis silau, tekstur sutera lembut & anti-cap jari.",
+  },
+  {
+    id: "FineArt",
+    name: "Archival Fine Art Cotton (310gsm)",
+    extraCost: 3.0,
+    desc: "Kertas kapas muzium, kalis luntur 100+ tahun (+RM 3.00/print).",
+  },
+];
+
+const PRINT_FRAME_OPTIONS = [
+  {
+    id: "none",
+    name: "Cetak Sahaja (Tanpa Bingkai)",
+    extraCost: 0,
+    desc: "Cetakan fizikal gred studio tanpa bingkai.",
+  },
+  {
+    id: "black",
+    name: "Bingkai Hitam Minimalis",
+    extraCost: 15.0,
+    desc: "Bingkai kayu hitam matte dengan cermin pelindung UV.",
+  },
+  {
+    id: "oak",
+    name: "Bingkai Jati / Oak Natural",
+    extraCost: 20.0,
+    desc: "Bingkai kayu jati asli bertekstur hangat gaya estetik.",
+  },
+  {
+    id: "acrylic",
+    name: "Acrylic Mount Borderless",
+    extraCost: 30.0,
+    desc: "Panel akrilik lutsinar berkilat tanpa bingkai tepi.",
+  },
+];
+
+const calculatePrintingPricing = (sizeId, paperType, frameId, quantity) => {
+  const sizeObj =
+    PHOTO_PRINT_SIZES.find((s) => s.id === sizeId) || PHOTO_PRINT_SIZES[0];
+  let basePrice = sizeObj.basePrice;
+  let paperExtra = paperType === "FineArt" ? 3.0 : 0.0;
+
+  let frameExtra = 0.0;
+  if (frameId === "black")
+    frameExtra = sizeId === "a3" || sizeId === "a4" ? 25.0 : 15.0;
+  if (frameId === "oak")
+    frameExtra = sizeId === "a3" || sizeId === "a4" ? 30.0 : 20.0;
+  if (frameId === "acrylic")
+    frameExtra = sizeId === "a3" || sizeId === "a4" ? 45.0 : 30.0;
+
+  const unitPrice = basePrice + paperExtra + frameExtra;
+  const rawSubtotal = unitPrice * Math.max(1, quantity);
+
+  let discountPercent = 0;
+  if (quantity >= 25) discountPercent = 20;
+  else if (quantity >= 10) discountPercent = 10;
+
+  const discountAmount = rawSubtotal * (discountPercent / 100);
+  const finalSubtotal = rawSubtotal - discountAmount;
+
+  return {
+    sizeObj,
+    unitPrice,
+    basePrice,
+    paperExtra,
+    frameExtra,
+    rawSubtotal,
+    discountPercent,
+    discountAmount,
+    finalSubtotal,
+    isDiscounted: discountPercent > 0,
+  };
+};
+
 // Helper function for dynamic pricing calculations (e.g. tiered discounts)
 const calculateRentalPricing = (
   rental,
   days,
   kit = "Standard Kit",
-  quantity = 1,
-  size = "4R",
 ) => {
   if (!rental) return { dailyRate: 0, subtotal: 0, isDiscounted: false };
-
-  // Pricing logic for Printing Service
-  if (rental.id === "r4") {
-    let basePricePerPrint = 2; // Default 4R (RM 2)
-    if (size === "5R") {
-      basePricePerPrint = 3; // 5R (RM 3)
-    } else if (size === "A4") {
-      basePricePerPrint = 10; // A4 (RM 10)
-    }
-
-    const subtotal = basePricePerPrint * quantity;
-    const isDiscounted = quantity >= 10; // Bulk discount for 10+ prints
-    return { dailyRate: basePricePerPrint, subtotal, isDiscounted };
-  }
 
   let dailyRate = parseInt(rental.rate.replace(/[^0-9]/g, ""), 10);
   let isDiscounted = false;
@@ -304,7 +413,7 @@ const calculateRentalPricing = (
 
   if (isInsta360) {
     if (kit === "Standard Kit") {
-      dailyRate = 45; // Standard Kit murah sikit (RM 45/day)
+      dailyRate = 45; // Standard Kit (RM 45/day)
     } else if (kit === "Travel Kit") {
       dailyRate = 60; // Travel Kit (RM 60/day)
     } else if (kit === "Sport Kit") {
@@ -376,24 +485,6 @@ const RENTAL_ITEMS = [
     ],
     image:
       "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "r4",
-    name: "Premium Photo Printing Service",
-    subtitle: "High-End Matte or Glossy Photo Prints",
-    type: "Printing Service",
-    rate: "Dari RM 2 / print",
-    isAvailable: true,
-    desc: "Cetak gambar kegemaran anda dengan kualiti makmal foto profesional. Sesuai untuk gambar potret, landskap, atau kenangan keluarga dengan kertas foto premium kalis air.",
-    lensIncluded:
-      "Pilihan saiz 4R, 5R, atau A4 dengan kemasan berkualiti tinggi",
-    specs: [
-      "Kertas foto Ultra Premium Glossy/Matte (260gsm)",
-      "Dakwat kalis luntur & kalis air (Tahan sehingga 100 tahun)",
-      "Pilihan bingkai minimalis (pilihan tambahan)",
-      "Penghantaran pantas ke seluruh Malaysia / pickup di studio",
-    ],
-    image: "/image/_DSC0196.jpg",
   },
 ];
 
@@ -646,7 +737,6 @@ export default function App() {
 
   // Client Desk/Dashboard unreleased proof visual active state
   const [selectedProof, setSelectedProof] = useState(null);
-
   // Bookings setup with Start Date & End Date calculation
   const [selectedRental, setSelectedRental] = useState(null);
   const [rentalForm, setRentalForm] = useState({
@@ -656,15 +746,158 @@ export default function App() {
     startDate: null,
     endDate: null,
     selectedKit: "Standard Kit",
-    printSize: "4R",
-    printPaperType: "Glossy",
-    printQuantity: 5,
     agreedToTerms: false,
   });
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [rentalSuccess, setRentalSuccess] = useState(false);
   const [bookingsList, setBookingsList] = useState([]);
+
+  // Printing Service Modal & Form State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printForm, setPrintForm] = useState({
+    sizeId: "4r",
+    paperType: "Glossy",
+    frameId: "none",
+    borderStyle: "bleed",
+    colorTone: "original",
+    quantity: 5,
+    pickupMethod: "pickup",
+    customNotes: "",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    uploadedFile: null,
+    uploadedPreviewUrl: null,
+    uploadedImgDimensions: null,
+    targetDate: null,
+    agreedToTerms: false,
+  });
+  const [printOrderSuccess, setPrintOrderSuccess] = useState(false);
+
+  const openPrintingModalWithSize = (sizeId) => {
+    setPrintForm((prev) => ({
+      ...prev,
+      sizeId: sizeId || "4r",
+    }));
+    setIsPrintModalOpen(true);
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        setPrintForm((prev) => ({
+          ...prev,
+          uploadedFile: file,
+          uploadedPreviewUrl: previewUrl,
+          uploadedImgDimensions: { width: img.width, height: img.height },
+        }));
+      };
+      img.src = previewUrl;
+    }
+  };
+
+  const handlePrintSubmit = (e) => {
+    e.preventDefault();
+    if (
+      !printForm.name ||
+      !printForm.email ||
+      !printForm.phone ||
+      !printForm.agreedToTerms
+    ) {
+      return;
+    }
+
+    const { sizeObj, finalSubtotal } = calculatePrintingPricing(
+      printForm.sizeId,
+      printForm.paperType,
+      printForm.frameId,
+      printForm.quantity
+    );
+
+    const frameObj = PRINT_FRAME_OPTIONS.find((f) => f.id === printForm.frameId);
+    const paperObj = PRINT_PAPER_TYPES.find((p) => p.id === printForm.paperType);
+
+    const formattedDate = printForm.targetDate
+      ? printForm.targetDate.toLocaleDateString("en-MY", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "Pickup/Delivery Scheduled";
+
+    const newPrintBooking = {
+      id: Math.random().toString(36).substring(7),
+      equipmentName: `Photo Print - ${sizeObj.name}`,
+      selectedKit: `${sizeObj.dimensions} (${paperObj?.name || printForm.paperType}) × ${printForm.quantity} pcs`,
+      duration: `${printForm.quantity} pcs`,
+      date: formattedDate,
+      rate: `RM ${sizeObj.basePrice}/pc`,
+      totalCost: `RM ${finalSubtotal.toFixed(2)}`,
+      status: "Order Confirmed - Pending File",
+    };
+
+    setBookingsList((prev) => [newPrintBooking, ...prev]);
+    setPrintOrderSuccess(true);
+
+    // WhatsApp Dispatch Automation
+    const adminWhatsApp = "601123180399";
+    const message =
+      `*TEMPAHAN CETAKAN GAMBAR (PHOTO PRINTING ORDER)*%0A%0A` +
+      `*Saiz Cetakan:* ${sizeObj.name} (${sizeObj.dimensions})%0A` +
+      `*Kemasan Kertas:* ${paperObj?.name || printForm.paperType}%0A` +
+      `*Bingkai/Mounting:* ${frameObj?.name || "Cetak Sahaja"}%0A` +
+      `*Gaya Margin:* ${printForm.borderStyle === "bleed" ? "Full Bleed (Tanpa Border)" : "White Margin Border"}%0A` +
+      `*Tona Warna:* ${printForm.colorTone === "bw" ? "Hitam & Putih (B&W)" : printForm.colorTone === "vintage" ? "Vintage Warm" : "Warna Asal"}%0A` +
+      `*Kuantiti:* ${printForm.quantity} pcs%0A` +
+      (printForm.uploadedFile ? `*Fail Gambar:* ${printForm.uploadedFile.name} (${printForm.uploadedImgDimensions?.width}x${printForm.uploadedImgDimensions?.height}px)%0A` : "") +
+      `*Kaedah Terima:* ${printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"}%0A` +
+      (printForm.customNotes ? `*Nota Tambahan:* ${printForm.customNotes}%0A` : "") +
+      `%0A*MAKLUMAT PELANGGAN:*%0A` +
+      `*Nama:* ${printForm.name}%0A` +
+      `*Emel:* ${printForm.email}%0A` +
+      `*Telefon:* ${printForm.phone}%0A` +
+      (printForm.address ? `*Alamat:* ${printForm.address}%0A` : "") +
+      `*Tarikh Sasaran:* ${formattedDate}%0A` +
+      `*JUMLAH KESELURUHAN:* RM ${finalSubtotal.toFixed(2)}%0A%0A` +
+      `_Sila balas mesej ini bersama lampiran fail gambar anda jika belum dimuat naik._`;
+
+    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
+  };
+
+  // Reset printing form after success modal timeout
+  useEffect(() => {
+    if (printOrderSuccess) {
+      const timer = setTimeout(() => {
+        setPrintOrderSuccess(false);
+        setIsPrintModalOpen(false);
+        setPrintForm({
+          sizeId: "4r",
+          paperType: "Glossy",
+          frameId: "none",
+          borderStyle: "bleed",
+          colorTone: "original",
+          quantity: 5,
+          pickupMethod: "pickup",
+          customNotes: "",
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          uploadedFile: null,
+          uploadedPreviewUrl: null,
+          uploadedImgDimensions: null,
+          targetDate: null,
+          agreedToTerms: false,
+        });
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [printOrderSuccess]);
 
   // Form Reset Logic after success
   useEffect(() => {
@@ -679,9 +912,6 @@ export default function App() {
           startDate: null,
           endDate: null,
           selectedKit: "Standard Kit",
-          printSize: "4R",
-          printPaperType: "Glossy",
-          printQuantity: 5,
           agreedToTerms: false,
         });
       }, 2500);
@@ -861,8 +1091,6 @@ export default function App() {
       selectedRental,
       days,
       rentalForm.selectedKit,
-      rentalForm.printQuantity,
-      rentalForm.printSize,
     );
     const finalCost = subtotal;
 
@@ -880,20 +1108,13 @@ export default function App() {
     const isInsta360 =
       selectedRental.id === "r3" ||
       selectedRental.name?.toLowerCase().includes("insta360");
-    const isPrinting = selectedRental.id === "r4";
 
     const newBooking = {
       id: Math.random().toString(36).substring(7),
       equipmentName: selectedRental.name,
-      selectedKit: isInsta360
-        ? rentalForm.selectedKit || "Standard Kit"
-        : isPrinting
-          ? `${rentalForm.printSize} (${rentalForm.printPaperType}) × ${rentalForm.printQuantity} pcs`
-          : null,
-      duration: isPrinting ? `${rentalForm.printQuantity} pcs` : `${days} Days`,
-      date: isPrinting
-        ? formattedStart
-        : `${formattedStart} to ${formattedEnd}`,
+      selectedKit: isInsta360 ? rentalForm.selectedKit || "Standard Kit" : null,
+      duration: `${days} Days`,
+      date: `${formattedStart} to ${formattedEnd}`,
       rate: selectedRental.rate,
       totalCost: `RM ${finalCost.toFixed(2)}`,
       status: "Processing Verification",
@@ -902,23 +1123,19 @@ export default function App() {
     setBookingsList((prev) => [newBooking, ...prev]);
     setRentalSuccess(true);
 
-    // WhatsApp Automation - Opens in new tab with pre-filled details
-    const adminWhatsApp = "601123180399"; // Replace with your actual WhatsApp number
+    // WhatsApp Automation
+    const adminWhatsApp = "601123180399";
 
     let detailsText = "";
     if (isInsta360) {
       detailsText = `*Selected Kit:* ${rentalForm.selectedKit || "Standard Kit"}%0A`;
-    } else if (isPrinting) {
-      detailsText = `*Print Specs:* Size ${rentalForm.printSize}, ${rentalForm.printPaperType} Finish%0A*Quantity:* ${rentalForm.printQuantity} pcs%0A`;
     }
 
-    const durationLabel = isPrinting
-      ? `*Pickup Date:* ${formattedStart}`
-      : `*Duration:* ${days} Days%0A*Date:* ${formattedStart} to ${formattedEnd}`;
+    const durationLabel = `*Duration:* ${days} Days%0A*Date:* ${formattedStart} to ${formattedEnd}`;
 
     const message =
-      `*NEW ${isPrinting ? "PRINTING" : "LEASE"} REQUEST*%0A%0A` +
-      `*Service/Equipment:* ${selectedRental.name}%0A` +
+      `*NEW LEASE REQUEST*%0A%0A` +
+      `*Equipment:* ${selectedRental.name}%0A` +
       detailsText +
       `*Client:* ${rentalForm.name}%0A` +
       `*Email:* ${rentalForm.email}%0A` +
@@ -926,28 +1143,18 @@ export default function App() {
       durationLabel +
       "%0A" +
       `*Total Cost:* RM ${finalCost.toFixed(2)}%0A%0A` +
-      (isPrinting
-        ? `_Syarat Cetakan: Sila hantar fail gambar beresolusi tinggi ke emel/WhatsApp studio kami._%0A%0A`
-        : `_Syarat Pickup: Sediakan Salinan IC (Depan & Belakang), Alamat Terkini & Media Sosial Aktif._%0A%0A`) +
+      `_Syarat Pickup: Sediakan Salinan IC (Depan & Belakang), Alamat Terkini & Media Sosial Aktif._%0A%0A` +
       `_Submitted via Mirul Studio Booking Portal_`;
 
     window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
   };
 
   const updateSelectedDates = (start, end) => {
-    if (selectedRental?.id === "r4") {
-      setRentalForm((prev) => ({
-        ...prev,
-        startDate: start,
-        endDate: start,
-      }));
-    } else {
-      setRentalForm((prev) => ({
-        ...prev,
-        startDate: start,
-        endDate: end,
-      }));
-    }
+    setRentalForm((prev) => ({
+      ...prev,
+      startDate: start,
+      endDate: end,
+    }));
   };
 
   return (
@@ -1076,6 +1283,13 @@ export default function App() {
             className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-zinc-400 hover:text-white transition-colors duration-300"
           >
             Rental
+          </a>
+          <a
+            href="#printing"
+            className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-zinc-400 hover:text-white transition-colors duration-300 flex items-center gap-1"
+          >
+            <Printer className="w-3 h-3 text-emerald-400" />
+            <span>Photo Prints</span>
           </a>
 
           <button
@@ -1792,6 +2006,372 @@ export default function App() {
       </section>
 
       {/* ========================================================
+          FINE ART & PHOTO PRINTING SERVICE SECTION
+          ======================================================== */}
+      <section
+        id="printing"
+        className="px-6 md:px-16 py-24 bg-[#07070a] border-t border-zinc-900/60 relative z-10"
+      >
+        <div className="max-w-7xl mx-auto space-y-12">
+          {/* Header */}
+          <div className="text-center max-w-xl mx-auto space-y-3">
+            <span className="text-xs font-mono uppercase tracking-[0.4em] text-emerald-400 animate-pulse">
+              FINE ART &amp; PRINTING LAB
+            </span>
+            <h3 className="text-3xl md:text-4xl font-semibold tracking-tight uppercase">
+              Photo Printing Service
+            </h3>
+            <p className="text-zinc-450 text-xs md:text-sm font-light leading-relaxed">
+              Tukarkan gambar digital anda kepada cetakan fizikal berkualiti makmal foto profesional.
+            </p>
+          </div>
+
+          {/* Single Configurator Card */}
+          <div className="bg-zinc-950/60 border border-zinc-900/80 rounded-2xl p-6 md:p-8 max-w-4xl mx-auto shadow-2xl relative">
+            {printOrderSuccess ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="py-16 flex flex-col items-center justify-center space-y-4 text-center"
+              >
+                <div className="p-4 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-400">
+                  <CheckCircle className="w-12 h-12" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-base font-semibold text-white uppercase tracking-wider">
+                    Tempahan Berjaya Dihantar!
+                  </p>
+                  <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+                    Sila hantar fail gambar anda melalui WhatsApp yang telah dibuka. Anda juga boleh memantau tempahan dalam Portal Pelanggan.
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <form onSubmit={handlePrintSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                  
+                  {/* Left Column: Photo Upload & Preview (5 Cols) */}
+                  <div className="md:col-span-5 space-y-4">
+                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                      1. Muat Naik &amp; Pratinjau
+                    </label>
+                    
+                    <label className="border border-dashed border-zinc-800 hover:border-emerald-500/50 bg-zinc-900/20 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[180px] relative overflow-hidden">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                      {printForm.uploadedPreviewUrl ? (
+                        <div className="relative w-full h-44 flex items-center justify-center overflow-hidden rounded-lg bg-zinc-950">
+                          <img
+                            src={printForm.uploadedPreviewUrl}
+                            alt="Preview Print"
+                            className={`max-h-full max-w-full object-contain ${
+                              printForm.colorTone === "bw"
+                                ? "grayscale contrast-125"
+                                : printForm.colorTone === "vintage"
+                                ? "sepia-[0.3] brightness-95"
+                                : ""
+                            } ${
+                              printForm.borderStyle === "border"
+                                ? "p-3 bg-white"
+                                : ""
+                            }`}
+                          />
+                          <div className="absolute bottom-2 right-2 bg-zinc-900/90 backdrop-blur-sm text-[9px] font-mono text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
+                            Tukar Gambar
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center text-center space-y-2 py-4">
+                          <div className="p-3 bg-zinc-900 group-hover:bg-emerald-950/20 rounded-full border border-zinc-800 group-hover:border-emerald-500/20 text-zinc-400 group-hover:text-emerald-400 transition-colors">
+                            <UploadCloud className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-zinc-300 group-hover:text-white">
+                              Pilih fail gambar di sini
+                            </p>
+                            <p className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                              PNG, JPG, WEBP
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+
+                    {/* Metadata */}
+                    {printForm.uploadedFile && (
+                      <div className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-900 space-y-1 font-mono text-[9px] text-zinc-400">
+                        <div className="flex justify-between">
+                          <span>Nama:</span>
+                          <span className="truncate max-w-[150px] text-white">{printForm.uploadedFile.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <span className="text-emerald-400 font-bold">
+                            {printForm.uploadedImgDimensions && printForm.uploadedImgDimensions.width > 1500
+                              ? "✓ Kualiti Sangat Tajam"
+                              : "⚠ Kualiti Sederhana"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quick Preview Options */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest block">
+                          Gaya Margin
+                        </label>
+                        <select
+                          value={printForm.borderStyle}
+                          onChange={(e) => setPrintForm(prev => ({ ...prev, borderStyle: e.target.value }))}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 text-[10px] text-zinc-300 focus:outline-none"
+                        >
+                          <option value="bleed">Full Bleed (Tanpa Border)</option>
+                          <option value="border">White Margin (Gaya Galeri)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-mono text-zinc-500 uppercase tracking-widest block">
+                          Tona Warna
+                        </label>
+                        <select
+                          value={printForm.colorTone}
+                          onChange={(e) => setPrintForm(prev => ({ ...prev, colorTone: e.target.value }))}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 text-[10px] text-zinc-300 focus:outline-none"
+                        >
+                          <option value="original">Warna Asal</option>
+                          <option value="bw">Hitam &amp; Putih</option>
+                          <option value="vintage">Vintage Warm</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Configurations (7 Cols) */}
+                  <div className="md:col-span-7 space-y-4">
+                    
+                    {/* Size Selector */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                        2. Pilih Saiz
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {PHOTO_PRINT_SIZES.map((sz) => {
+                          const isSelected = printForm.sizeId === sz.id;
+                          return (
+                            <button
+                              key={sz.id}
+                              type="button"
+                              onClick={() => setPrintForm(prev => ({ ...prev, sizeId: sz.id }))}
+                              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                                isSelected
+                                  ? "bg-white text-black border-white"
+                                  : "bg-zinc-900/40 border-zinc-900 text-zinc-400 hover:border-zinc-850 hover:text-zinc-200"
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <span className={`text-xs font-bold uppercase ${isSelected ? "text-black" : "text-white"}`}>
+                                  Saiz {sz.id.toUpperCase()}
+                                </span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                              </div>
+                              <div className="mt-2 font-mono text-[10px]">
+                                <span className="block font-bold">RM {sz.basePrice.toFixed(2)}</span>
+                                <span className={`block text-[9px] ${isSelected ? "text-zinc-700" : "text-zinc-500"}`}>{sz.dimensions}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Paper Finish & Postage Option */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Paper Finish */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                          3. Jenis Kertas
+                        </label>
+                        <select
+                          value={printForm.paperType}
+                          onChange={(e) => setPrintForm(prev => ({ ...prev, paperType: e.target.value }))}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:outline-none"
+                        >
+                          {PRINT_PAPER_TYPES.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} {p.extraCost > 0 ? `(+RM ${p.extraCost})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Postage/Pickup Toggle */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                          4. Penghantaran ("Post ke")
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-lg">
+                          {[
+                            { id: "pickup", label: "Self-Pickup" },
+                            { id: "postage", label: "Hantar Pos" },
+                          ].map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setPrintForm(prev => ({ ...prev, pickupMethod: m.id }))}
+                              className={`py-1.5 rounded-md text-[11px] transition-all font-medium ${
+                                printForm.pickupMethod === m.id
+                                  ? "bg-zinc-950 text-white font-bold"
+                                  : "text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Postage Address Input (if Postage selected) */}
+                    {printForm.pickupMethod === "postage" && (
+                      <div className="space-y-1.5 animate-fadeIn">
+                        <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">
+                          Alamat Penghantaran
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={printForm.address}
+                          onChange={(e) => setPrintForm({ ...printForm, address: e.target.value })}
+                          placeholder="Alamat Lengkap Penghantaran Pos *"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-650"
+                        />
+                      </div>
+                    )}
+
+                    {/* Quantity & Pricing Estimate */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center pt-2 border-t border-zinc-900">
+                      {/* Quantity */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                          5. Kuantiti (Pcs)
+                        </label>
+                        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 max-w-[150px]">
+                          <button
+                            type="button"
+                            onClick={() => setPrintForm(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
+                            className="w-7 h-7 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-xs"
+                          >
+                            <Minus className="w-2.5 h-2.5" />
+                          </button>
+                          <span className="flex-1 text-center text-xs font-bold font-mono text-white">
+                            {printForm.quantity} pcs
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setPrintForm(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                            className="w-7 h-7 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-xs"
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Pricing Summary */}
+                      {(() => {
+                        const { finalSubtotal } = calculatePrintingPricing(
+                          printForm.sizeId,
+                          printForm.paperType,
+                          printForm.frameId,
+                          printForm.quantity
+                        );
+                        return (
+                          <div className="text-right">
+                            <span className="block text-[9px] font-mono text-zinc-500 uppercase">Jumlah Harga</span>
+                            <span className="text-lg font-bold text-emerald-400 font-mono">
+                              RM {finalSubtotal.toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="space-y-2 pt-2 border-t border-zinc-900">
+                      <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
+                        6. Maklumat Hubungan
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={printForm.name}
+                          onChange={(e) => setPrintForm({ ...printForm, name: e.target.value })}
+                          placeholder="Nama Penuh *"
+                          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
+                        />
+                        <input
+                          type="tel"
+                          required
+                          value={printForm.phone}
+                          onChange={(e) => setPrintForm({ ...printForm, phone: e.target.value })}
+                          placeholder="No. Telefon (WhatsApp) *"
+                          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
+                        />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={printForm.email}
+                        onChange={(e) => setPrintForm({ ...printForm, email: e.target.value })}
+                        placeholder="Alamat Emel *"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
+                      />
+                    </div>
+
+                    {/* Agreement & Submit */}
+                    <div className="space-y-3 pt-2">
+                      <label className="flex items-start space-x-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          required
+                          checked={printForm.agreedToTerms}
+                          onChange={(e) => setPrintForm(prev => ({ ...prev, agreedToTerms: e.target.checked }))}
+                          className="mt-0.5 w-3.5 h-3.5 rounded border-zinc-800 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20 accent-emerald-500 cursor-pointer"
+                        />
+                        <span className="text-[10px] text-zinc-500 group-hover:text-zinc-350 transition-colors leading-relaxed">
+                          Saya mengesahkan maklumat tempahan ini betul &amp; bersetuju dengan terma cetakan.
+                        </span>
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          !printForm.name ||
+                          !printForm.phone ||
+                          !printForm.email ||
+                          !printForm.agreedToTerms
+                        }
+                        className="w-full py-3 bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500 rounded-xl text-xs uppercase tracking-wider font-bold transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Tempah Sekarang via WhatsApp</span>
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================
           CLIENT ACCESS PORTAL DRAWER (SECURE AUTHENTICATION)
           ======================================================== */}
       <AnimatePresence>
@@ -2020,7 +2600,7 @@ export default function App() {
                               email: e.target.value,
                             })
                           }
-                          placeholder="e.g. mirul@mirul-studio.com"
+                          placeholder="e.g. mirulstudio@gmail.com"
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-600 transition-colors"
                         />
                       </div>
@@ -2244,13 +2824,8 @@ export default function App() {
                             selectedRental,
                             days,
                             rentalForm.selectedKit,
-                            rentalForm.printQuantity,
-                            rentalForm.printSize,
                           );
-                        const isPrinting = selectedRental.id === "r4";
-                        const securityDeposit = isPrinting
-                          ? 0.0
-                          : selectedRental?.deposit || 50.0;
+                        const securityDeposit = selectedRental?.deposit || 50.0;
                         const estimatedTotal = subtotal;
 
                         const formatNiceDate = (d) => {
@@ -2265,41 +2840,33 @@ export default function App() {
                         return (
                           <div className="bg-[#09090b] border border-zinc-900 rounded-lg p-5 space-y-3 font-mono text-[11px] text-zinc-400">
                             <div className="flex justify-between text-zinc-500 uppercase tracking-widest text-[9px] border-b border-zinc-900 pb-2">
-                              <span>
-                                {isPrinting
-                                  ? "Printing Order Estimate"
-                                  : "Lease Invoice Estimate"}
-                              </span>
+                              <span>Lease Invoice Estimate</span>
                               <span>MYR (RM)</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-[10px]">
                               <div>
                                 <span className="block text-[8px] uppercase text-zinc-600">
-                                  {isPrinting ? "Pickup Date" : "Start Date"}
+                                  Start Date
                                 </span>
                                 <span className="text-zinc-200">
                                   {formatNiceDate(rentalForm.startDate)}
                                 </span>
                               </div>
-                              {!isPrinting && (
-                                <div>
-                                  <span className="block text-[8px] uppercase text-zinc-600">
-                                    End Date
-                                  </span>
-                                  <span className="text-zinc-200">
-                                    {formatNiceDate(rentalForm.endDate)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            {!isPrinting && (
-                              <div className="flex justify-between">
-                                <span>Calculated Duration</span>
-                                <span className="text-zinc-200 font-bold">
-                                  {days} {days === 1 ? "Day" : "Days"}
+                              <div>
+                                <span className="block text-[8px] uppercase text-zinc-600">
+                                  End Date
+                                </span>
+                                <span className="text-zinc-200">
+                                  {formatNiceDate(rentalForm.endDate)}
                                 </span>
                               </div>
-                            )}
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Calculated Duration</span>
+                              <span className="text-zinc-200 font-bold">
+                                {days} {days === 1 ? "Day" : "Days"}
+                              </span>
+                            </div>
                             <div className="border-t border-dashed border-zinc-900 my-1"></div>
                             {selectedRental &&
                               (selectedRental.id === "r3" ||
@@ -2314,29 +2881,14 @@ export default function App() {
                                   </span>
                                 </div>
                               )}
-                            {isPrinting && (
-                              <div className="flex justify-between text-zinc-300">
-                                <span>Selected Specs</span>
-                                <span className="text-emerald-400 font-bold">
-                                  {rentalForm.printSize} (
-                                  {rentalForm.printPaperType}) ×{" "}
-                                  {rentalForm.printQuantity} pcs
-                                </span>
-                              </div>
-                            )}
                             <div className="flex justify-between items-start">
                               <div>
                                 <span>
-                                  {isPrinting
-                                    ? `Unit Rate (RM ${dailyRate} × ${rentalForm.printQuantity} pcs)`
-                                    : `Base Rate (RM ${dailyRate} × ${days} ${days === 1 ? "day" : "days"})`}
+                                  Base Rate (RM {dailyRate} × {days} {days === 1 ? "day" : "days"})
                                 </span>
                                 {isDiscounted && (
                                   <span className="block text-[9px] text-emerald-400 font-sans mt-0.5">
-                                    ★{" "}
-                                    {isPrinting
-                                      ? "Bulk Printing Discount Applied (10+ pcs)"
-                                      : "Promo Rate Applied (>3 Days @ RM50/day)"}
+                                    ★ Promo Rate Applied (&gt;3 Days Discount)
                                   </span>
                                 )}
                               </div>
@@ -2345,25 +2897,19 @@ export default function App() {
                               </span>
                             </div>
                             <div className="flex justify-between text-zinc-500">
-                              <span>
-                                {isPrinting
-                                  ? "Service Handling Fee"
-                                  : "Refundable Security Deposit"}
-                              </span>
+                              <span>Refundable Security Deposit</span>
                               <span>RM {securityDeposit.toFixed(2)}</span>
                             </div>
                             <div className="border-t border-dashed border-zinc-800 pt-3 flex justify-between text-xs font-bold text-white">
                               <span className="uppercase tracking-wider">
-                                {isPrinting ? "Total Order" : "Estimated Total"}
+                                Estimated Total
                               </span>
                               <span className="text-emerald-400 font-mono text-sm">
                                 RM {estimatedTotal.toFixed(2)}
                               </span>
                             </div>
                             <p className="text-[9px] text-zinc-500 leading-normal italic pt-1 text-center">
-                              {isPrinting
-                                ? "* Sila hantar fail gambar beresolusi tinggi ke emel/WhatsApp studio kami selepas tempahan."
-                                : `* Refundable deposit of RM ${securityDeposit.toFixed(2)} authorized upon pickup verification.`}
+                              * Refundable deposit of RM {securityDeposit.toFixed(2)} authorized upon pickup verification.
                             </p>
                           </div>
                         );
@@ -2373,9 +2919,7 @@ export default function App() {
                     {/* Right Panel: Custom Premium Glassmorphic Calendar Picker */}
                     <div className="space-y-3">
                       <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block text-center md:text-left">
-                        {selectedRental?.id === "r4"
-                          ? "Select Target Pickup Date"
-                          : "Select Lease Range (Tap Start & End Dates)"}
+                        Select Lease Range (Tap Start &amp; End Dates)
                       </label>
                       <CustomGlassCalendar
                         startDate={rentalForm.startDate}
@@ -2446,6 +2990,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Printing modal drawer has been removed in favor of the inline configurator card */}
 
       {/* ========================================================
           TERMS AND CONDITIONS FULL MODAL POPUP
