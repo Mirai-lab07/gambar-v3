@@ -41,7 +41,9 @@ import {
   Truck,
   Check,
   Info,
+  Loader2,
 } from "lucide-react";
+import emailjs from "@emailjs/browser";
 
 // Curated premium photographs including local Heritage captures
 const PHOTOS = [
@@ -398,11 +400,7 @@ const calculatePrintingPricing = (sizeId, paperType, frameId, quantity) => {
 };
 
 // Helper function for dynamic pricing calculations (e.g. tiered discounts)
-const calculateRentalPricing = (
-  rental,
-  days,
-  kit = "Standard Kit",
-) => {
+const calculateRentalPricing = (rental, days, kit = "Standard Kit") => {
   if (!rental) return { dailyRate: 0, subtotal: 0, isDiscounted: false };
 
   let dailyRate = parseInt(rental.rate.replace(/[^0-9]/g, ""), 10);
@@ -715,6 +713,7 @@ const artisticThemes = [
 ];
 
 export default function App() {
+  const printFormRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [lightboxIndex, setLightboxIndex] = useState(null);
@@ -746,6 +745,7 @@ export default function App() {
     startDate: null,
     endDate: null,
     selectedKit: "Standard Kit",
+    submitMethod: "email",
     agreedToTerms: false,
   });
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -755,6 +755,7 @@ export default function App() {
 
   // Printing Service Modal & Form State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPrintUploading, setIsPrintUploading] = useState(false);
   const [printForm, setPrintForm] = useState({
     sizeId: "4r",
     paperType: "Glossy",
@@ -763,6 +764,7 @@ export default function App() {
     colorTone: "original",
     quantity: 5,
     pickupMethod: "pickup",
+    submitMethod: "email",
     customNotes: "",
     name: "",
     email: "",
@@ -801,7 +803,7 @@ export default function App() {
     }
   };
 
-  const handlePrintSubmit = (e) => {
+  const handlePrintSubmit = async (e) => {
     e.preventDefault();
     if (
       !printForm.name ||
@@ -812,15 +814,44 @@ export default function App() {
       return;
     }
 
+    setIsPrintUploading(true);
+    let fileUrl = "";
+
+    if (printForm.uploadedFile) {
+      try {
+        const body = new FormData();
+        body.append("file", printForm.uploadedFile);
+        body.append("expire", "86400"); // 24 hours expiry
+
+        const response = await fetch("https://tmpfiles.org/api/v1/upload", {
+          method: "POST",
+          body: body,
+        });
+        const result = await response.json();
+        if (result.status === "success" && result.data && result.data.url) {
+          // Convert preview page link to direct download link
+          fileUrl = result.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+        }
+      } catch (err) {
+        console.error("Gagal memuat naik gambar:", err);
+      }
+    }
+
+    setIsPrintUploading(false);
+
     const { sizeObj, finalSubtotal } = calculatePrintingPricing(
       printForm.sizeId,
       printForm.paperType,
       printForm.frameId,
-      printForm.quantity
+      printForm.quantity,
     );
 
-    const frameObj = PRINT_FRAME_OPTIONS.find((f) => f.id === printForm.frameId);
-    const paperObj = PRINT_PAPER_TYPES.find((p) => p.id === printForm.paperType);
+    const frameObj = PRINT_FRAME_OPTIONS.find(
+      (f) => f.id === printForm.frameId,
+    );
+    const paperObj = PRINT_PAPER_TYPES.find(
+      (p) => p.id === printForm.paperType,
+    );
 
     const formattedDate = printForm.targetDate
       ? printForm.targetDate.toLocaleDateString("en-MY", {
@@ -838,35 +869,58 @@ export default function App() {
       date: formattedDate,
       rate: `RM ${sizeObj.basePrice}/pc`,
       totalCost: `RM ${finalSubtotal.toFixed(2)}`,
-      status: "Order Confirmed - Pending File",
+      status: "Order Confirmed",
     };
 
     setBookingsList((prev) => [newPrintBooking, ...prev]);
     setPrintOrderSuccess(true);
 
-    // WhatsApp Dispatch Automation
-    const adminWhatsApp = "601123180399";
-    const message =
-      `*TEMPAHAN CETAKAN GAMBAR (PHOTO PRINTING ORDER)*%0A%0A` +
-      `*Saiz Cetakan:* ${sizeObj.name} (${sizeObj.dimensions})%0A` +
-      `*Kemasan Kertas:* ${paperObj?.name || printForm.paperType}%0A` +
-      `*Bingkai/Mounting:* ${frameObj?.name || "Cetak Sahaja"}%0A` +
-      `*Gaya Margin:* ${printForm.borderStyle === "bleed" ? "Full Bleed (Tanpa Border)" : "White Margin Border"}%0A` +
-      `*Tona Warna:* ${printForm.colorTone === "bw" ? "Hitam & Putih (B&W)" : printForm.colorTone === "vintage" ? "Vintage Warm" : "Warna Asal"}%0A` +
-      `*Kuantiti:* ${printForm.quantity} pcs%0A` +
-      (printForm.uploadedFile ? `*Fail Gambar:* ${printForm.uploadedFile.name} (${printForm.uploadedImgDimensions?.width}x${printForm.uploadedImgDimensions?.height}px)%0A` : "") +
-      `*Kaedah Terima:* ${printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"}%0A` +
-      (printForm.customNotes ? `*Nota Tambahan:* ${printForm.customNotes}%0A` : "") +
-      `%0A*MAKLUMAT PELANGGAN:*%0A` +
-      `*Nama:* ${printForm.name}%0A` +
-      `*Emel:* ${printForm.email}%0A` +
-      `*Telefon:* ${printForm.phone}%0A` +
-      (printForm.address ? `*Alamat:* ${printForm.address}%0A` : "") +
-      `*Tarikh Sasaran:* ${formattedDate}%0A` +
-      `*JUMLAH KESELURUHAN:* RM ${finalSubtotal.toFixed(2)}%0A%0A` +
-      `_Sila balas mesej ini bersama lampiran fail gambar anda jika belum dimuat naik._`;
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId =
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID_PRINTING ||
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
+    const triggerMailtoFallback = () => {
+      const emailSubject = `TEMPAHAN CETAKAN GAMBAR (PHOTO PRINTING ORDER) - ${printForm.name}`;
+      const emailBody =
+        `TEMPAHAN CETAKAN GAMBAR (PHOTO PRINTING ORDER)\n\n` +
+        `Saiz Cetakan: ${sizeObj.name} (${sizeObj.dimensions})\n` +
+        `Kemasan Kertas: ${paperObj?.name || printForm.paperType}\n` +
+        `Bingkai/Mounting: ${frameObj?.name || "Cetak Sahaja"}\n` +
+        `Gaya Margin: ${printForm.borderStyle === "bleed" ? "Full Bleed (Tanpa Border)" : "White Margin Border"}\n` +
+        `Tona Warna: ${printForm.colorTone === "bw" ? "Hitam & Putih (B&W)" : printForm.colorTone === "vintage" ? "Vintage Warm" : "Warna Asal"}\n` +
+        `Kuantiti: ${printForm.quantity} pcs\n` +
+        (fileUrl ? `Pautan Fail Gambar (Download): ${fileUrl}\n` : "") +
+        `Kaedah Terima: ${printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"}\n` +
+        (printForm.address ? `Alamat Pos: ${printForm.address}\n` : "") +
+        (printForm.customNotes ? `Nota Tambahan: ${printForm.customNotes}\n` : "") +
+        `\nMAKLUMAT PELANGGAN:\n` +
+        `Nama: ${printForm.name}\n` +
+        `Emel: ${printForm.email}\n` +
+        `Telefon: ${printForm.phone}\n\n` +
+        `JUMLAH KESELURUHAN: RM ${finalSubtotal.toFixed(2)}`;
+
+      window.location.href = `mailto:kairuls.hakim@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    };
+
+    if (serviceId && templateId && publicKey) {
+      const linkEl = document.getElementById("emailjs_download_link");
+      if (linkEl) linkEl.value = fileUrl;
+
+      emailjs
+        .sendForm(serviceId, templateId, printFormRef.current, publicKey)
+        .then((result) => {
+          console.log("Email berjaya dihantar melalui EmailJS:", result.text);
+        })
+        .catch((error) => {
+          console.error("Gagal menghantar melalui EmailJS, beralih ke mailto:", error);
+          triggerMailtoFallback();
+        });
+    } else {
+      console.warn("Kunci EmailJS tidak dijumpai dalam .env. Beralih ke mailto link.");
+      triggerMailtoFallback();
+    }
   };
 
   // Reset printing form after success modal timeout
@@ -883,6 +937,7 @@ export default function App() {
           colorTone: "original",
           quantity: 5,
           pickupMethod: "pickup",
+          submitMethod: "email",
           customNotes: "",
           name: "",
           email: "",
@@ -1123,30 +1178,58 @@ export default function App() {
     setBookingsList((prev) => [newBooking, ...prev]);
     setRentalSuccess(true);
 
-    // WhatsApp Automation
-    const adminWhatsApp = "601123180399";
+    // Email Automation
+    const emailSubject = `PERMOHONAN SEWAAN ALAT (LEASE REQUEST) - ${rentalForm.name}`;
+    const emailBody =
+      `PERMOHONAN SEWAAN PERALATAN (LEASE REQUEST)\n\n` +
+      `Peralatan: ${selectedRental.name}\n` +
+      (isInsta360 ? `Pakej Kit: ${rentalForm.selectedKit || "Standard Kit"}\n` : "") +
+      `Tempoh: ${days} Hari (${formattedStart} hingga ${formattedEnd})\n` +
+      `Jumlah Kos: RM ${finalCost.toFixed(2)}\n\n` +
+      `MAKLUMAT PELANGGAN:\n` +
+      `Nama: ${rentalForm.name}\n` +
+      `Emel: ${rentalForm.email}\n` +
+      `Telefon: ${rentalForm.phone}\n\n` +
+      `Syarat Pickup: Sediakan Salinan IC (Depan & Belakang), Alamat Terkini & Media Sosial Aktif.`;
 
-    let detailsText = "";
-    if (isInsta360) {
-      detailsText = `*Selected Kit:* ${rentalForm.selectedKit || "Standard Kit"}%0A`;
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId =
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID_CAMERA ||
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+    const triggerMailtoFallback = () => {
+      window.location.href = `mailto:kairuls.hakim@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    };
+
+    if (serviceId && templateId && publicKey) {
+      emailjs
+        .send(
+          serviceId,
+          templateId,
+          {
+            to_name: "Mirul Studio Admin",
+            from_name: rentalForm.name,
+            client_email: rentalForm.email,
+            client_phone: rentalForm.phone,
+            equipment_name: selectedRental.name,
+            selected_kit: isInsta360 ? rentalForm.selectedKit || "Standard Kit" : "-",
+            duration: `${days} Hari (${formattedStart} hingga ${formattedEnd})`,
+            total_price: `RM ${finalCost.toFixed(2)}`,
+            notes: "Permohonan Sewaan Peralatan",
+          },
+          publicKey,
+        )
+        .then((result) => {
+          console.log("Email sewaan berjaya dihantar melalui EmailJS:", result.text);
+        })
+        .catch((error) => {
+          console.error("Gagal menghantar melalui EmailJS, beralih ke mailto:", error);
+          triggerMailtoFallback();
+        });
+    } else {
+      triggerMailtoFallback();
     }
-
-    const durationLabel = `*Duration:* ${days} Days%0A*Date:* ${formattedStart} to ${formattedEnd}`;
-
-    const message =
-      `*NEW LEASE REQUEST*%0A%0A` +
-      `*Equipment:* ${selectedRental.name}%0A` +
-      detailsText +
-      `*Client:* ${rentalForm.name}%0A` +
-      `*Email:* ${rentalForm.email}%0A` +
-      `*Phone:* ${rentalForm.phone}%0A` +
-      durationLabel +
-      "%0A" +
-      `*Total Cost:* RM ${finalCost.toFixed(2)}%0A%0A` +
-      `_Syarat Pickup: Sediakan Salinan IC (Depan & Belakang), Alamat Terkini & Media Sosial Aktif._%0A%0A` +
-      `_Submitted via Mirul Studio Booking Portal_`;
-
-    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, "_blank");
   };
 
   const updateSelectedDates = (start, end) => {
@@ -2022,7 +2105,8 @@ export default function App() {
               Photo Printing Service
             </h3>
             <p className="text-zinc-450 text-xs md:text-sm font-light leading-relaxed">
-              Tukarkan gambar digital anda kepada cetakan fizikal berkualiti makmal foto profesional.
+              Tukarkan gambar digital anda kepada cetakan fizikal berkualiti
+              makmal foto profesional.
             </p>
           </div>
 
@@ -2042,23 +2126,49 @@ export default function App() {
                     Tempahan Berjaya Dihantar!
                   </p>
                   <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-                    Sila hantar fail gambar anda melalui WhatsApp yang telah dibuka. Anda juga boleh memantau tempahan dalam Portal Pelanggan.
+                    Tempahan anda telah dihantar melalui Emel. Anda juga boleh
+                    memantau tempahan dalam Portal Pelanggan.
                   </p>
                 </div>
               </motion.div>
             ) : (
-              <form onSubmit={handlePrintSubmit} className="space-y-6">
+              <form ref={printFormRef} onSubmit={handlePrintSubmit} className="space-y-6">
+                {/* Hidden input fields for EmailJS template fields */}
+                <input type="hidden" name="to_name" value="Mirul Studio Admin" />
+                <input type="hidden" name="from_name" value={printForm.name} />
+                <input type="hidden" name="client_email" value={printForm.email} />
+                <input type="hidden" name="client_phone" value={printForm.phone} />
+                <input type="hidden" name="print_size" value={(() => {
+                  const { sizeObj } = calculatePrintingPricing(printForm.sizeId, printForm.paperType, printForm.frameId, printForm.quantity);
+                  return sizeObj ? `${sizeObj.name} (${sizeObj.dimensions})` : printForm.sizeId;
+                })()} />
+                <input type="hidden" name="paper_type" value={(() => {
+                  const paperObj = PRINT_PAPER_TYPES.find(p => p.id === printForm.paperType);
+                  return paperObj?.name || printForm.paperType;
+                })()} />
+                <input type="hidden" name="border_style" value={printForm.borderStyle === "bleed" ? "Full Bleed" : "White Margin"} />
+                <input type="hidden" name="color_tone" value={printForm.colorTone === "bw" ? "Hitam & Putih (B&W)" : printForm.colorTone === "vintage" ? "Vintage Warm" : "Warna Asal"} />
+                <input type="hidden" name="quantity" value={`${printForm.quantity} pcs`} />
+                <input type="hidden" name="pickup_method" value={printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"} />
+                <input type="hidden" name="postage_address" value={printForm.address || "-"} />
+                <input type="hidden" name="custom_notes" value={printForm.customNotes || "-"} />
+                <input type="hidden" name="total_price" value={(() => {
+                  const { finalSubtotal } = calculatePrintingPricing(printForm.sizeId, printForm.paperType, printForm.frameId, printForm.quantity);
+                  return `RM ${finalSubtotal.toFixed(2)}`;
+                })()} />
+                <input type="hidden" name="download_link" value="" id="emailjs_download_link" />
+
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                  
                   {/* Left Column: Photo Upload & Preview (5 Cols) */}
                   <div className="md:col-span-5 space-y-4">
                     <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
                       1. Muat Naik &amp; Pratinjau
                     </label>
-                    
+
                     <label className="border border-dashed border-zinc-800 hover:border-emerald-500/50 bg-zinc-900/20 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[180px] relative overflow-hidden">
                       <input
                         type="file"
+                        name="uploaded_file"
                         accept="image/*"
                         onChange={handlePhotoUpload}
                         className="hidden"
@@ -2072,8 +2182,8 @@ export default function App() {
                               printForm.colorTone === "bw"
                                 ? "grayscale contrast-125"
                                 : printForm.colorTone === "vintage"
-                                ? "sepia-[0.3] brightness-95"
-                                : ""
+                                  ? "sepia-[0.3] brightness-95"
+                                  : ""
                             } ${
                               printForm.borderStyle === "border"
                                 ? "p-3 bg-white"
@@ -2106,12 +2216,15 @@ export default function App() {
                       <div className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-900 space-y-1 font-mono text-[9px] text-zinc-400">
                         <div className="flex justify-between">
                           <span>Nama:</span>
-                          <span className="truncate max-w-[150px] text-white">{printForm.uploadedFile.name}</span>
+                          <span className="truncate max-w-[150px] text-white">
+                            {printForm.uploadedFile.name}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Status:</span>
                           <span className="text-emerald-400 font-bold">
-                            {printForm.uploadedImgDimensions && printForm.uploadedImgDimensions.width > 1500
+                            {printForm.uploadedImgDimensions &&
+                            printForm.uploadedImgDimensions.width > 1500
                               ? "✓ Kualiti Sangat Tajam"
                               : "⚠ Kualiti Sederhana"}
                           </span>
@@ -2127,11 +2240,20 @@ export default function App() {
                         </label>
                         <select
                           value={printForm.borderStyle}
-                          onChange={(e) => setPrintForm(prev => ({ ...prev, borderStyle: e.target.value }))}
+                          onChange={(e) =>
+                            setPrintForm((prev) => ({
+                              ...prev,
+                              borderStyle: e.target.value,
+                            }))
+                          }
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 text-[10px] text-zinc-300 focus:outline-none"
                         >
-                          <option value="bleed">Full Bleed (Tanpa Border)</option>
-                          <option value="border">White Margin (Gaya Galeri)</option>
+                          <option value="bleed">
+                            Full Bleed (Tanpa Border)
+                          </option>
+                          <option value="border">
+                            White Margin (Gaya Galeri)
+                          </option>
                         </select>
                       </div>
                       <div className="space-y-1">
@@ -2140,7 +2262,12 @@ export default function App() {
                         </label>
                         <select
                           value={printForm.colorTone}
-                          onChange={(e) => setPrintForm(prev => ({ ...prev, colorTone: e.target.value }))}
+                          onChange={(e) =>
+                            setPrintForm((prev) => ({
+                              ...prev,
+                              colorTone: e.target.value,
+                            }))
+                          }
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-1.5 text-[10px] text-zinc-300 focus:outline-none"
                         >
                           <option value="original">Warna Asal</option>
@@ -2153,7 +2280,6 @@ export default function App() {
 
                   {/* Right Column: Configurations (7 Cols) */}
                   <div className="md:col-span-7 space-y-4">
-                    
                     {/* Size Selector */}
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest block">
@@ -2166,7 +2292,12 @@ export default function App() {
                             <button
                               key={sz.id}
                               type="button"
-                              onClick={() => setPrintForm(prev => ({ ...prev, sizeId: sz.id }))}
+                              onClick={() =>
+                                setPrintForm((prev) => ({
+                                  ...prev,
+                                  sizeId: sz.id,
+                                }))
+                              }
                               className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
                                 isSelected
                                   ? "bg-white text-black border-white"
@@ -2174,14 +2305,24 @@ export default function App() {
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
-                                <span className={`text-xs font-bold uppercase ${isSelected ? "text-black" : "text-white"}`}>
+                                <span
+                                  className={`text-xs font-bold uppercase ${isSelected ? "text-black" : "text-white"}`}
+                                >
                                   Saiz {sz.id.toUpperCase()}
                                 </span>
-                                {isSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-black" />
+                                )}
                               </div>
                               <div className="mt-2 font-mono text-[10px]">
-                                <span className="block font-bold">RM {sz.basePrice.toFixed(2)}</span>
-                                <span className={`block text-[9px] ${isSelected ? "text-zinc-700" : "text-zinc-500"}`}>{sz.dimensions}</span>
+                                <span className="block font-bold">
+                                  RM {sz.basePrice.toFixed(2)}
+                                </span>
+                                <span
+                                  className={`block text-[9px] ${isSelected ? "text-zinc-700" : "text-zinc-500"}`}
+                                >
+                                  {sz.dimensions}
+                                </span>
                               </div>
                             </button>
                           );
@@ -2189,7 +2330,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Paper Finish & Postage Option */}
+                    {/* Paper Finish & Postage Options */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Paper Finish */}
                       <div className="space-y-1.5">
@@ -2198,12 +2339,18 @@ export default function App() {
                         </label>
                         <select
                           value={printForm.paperType}
-                          onChange={(e) => setPrintForm(prev => ({ ...prev, paperType: e.target.value }))}
+                          onChange={(e) =>
+                            setPrintForm((prev) => ({
+                              ...prev,
+                              paperType: e.target.value,
+                            }))
+                          }
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:outline-none"
                         >
                           {PRINT_PAPER_TYPES.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.name} {p.extraCost > 0 ? `(+RM ${p.extraCost})` : ""}
+                              {p.name}{" "}
+                              {p.extraCost > 0 ? `(+RM ${p.extraCost})` : ""}
                             </option>
                           ))}
                         </select>
@@ -2222,11 +2369,16 @@ export default function App() {
                             <button
                               key={m.id}
                               type="button"
-                              onClick={() => setPrintForm(prev => ({ ...prev, pickupMethod: m.id }))}
+                              onClick={() =>
+                                setPrintForm((prev) => ({
+                                  ...prev,
+                                  pickupMethod: m.id,
+                                }))
+                              }
                               className={`py-1.5 rounded-md text-[11px] transition-all font-medium ${
                                 printForm.pickupMethod === m.id
                                   ? "bg-zinc-950 text-white font-bold"
-                                  : "text-zinc-500 hover:text-zinc-300"
+                                  : "text-zinc-500 hover:text-zinc-350"
                               }`}
                             >
                               {m.label}
@@ -2246,7 +2398,12 @@ export default function App() {
                           type="text"
                           required
                           value={printForm.address}
-                          onChange={(e) => setPrintForm({ ...printForm, address: e.target.value })}
+                          onChange={(e) =>
+                            setPrintForm({
+                              ...printForm,
+                              address: e.target.value,
+                            })
+                          }
                           placeholder="Alamat Lengkap Penghantaran Pos *"
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder-zinc-650"
                         />
@@ -2263,7 +2420,12 @@ export default function App() {
                         <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 max-w-[150px]">
                           <button
                             type="button"
-                            onClick={() => setPrintForm(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
+                            onClick={() =>
+                              setPrintForm((prev) => ({
+                                ...prev,
+                                quantity: Math.max(1, prev.quantity - 1),
+                              }))
+                            }
                             className="w-7 h-7 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-xs"
                           >
                             <Minus className="w-2.5 h-2.5" />
@@ -2273,7 +2435,12 @@ export default function App() {
                           </span>
                           <button
                             type="button"
-                            onClick={() => setPrintForm(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                            onClick={() =>
+                              setPrintForm((prev) => ({
+                                ...prev,
+                                quantity: prev.quantity + 1,
+                              }))
+                            }
                             className="w-7 h-7 rounded bg-zinc-950 text-white font-bold hover:bg-zinc-800 flex items-center justify-center transition-colors text-xs"
                           >
                             <Plus className="w-2.5 h-2.5" />
@@ -2287,11 +2454,13 @@ export default function App() {
                           printForm.sizeId,
                           printForm.paperType,
                           printForm.frameId,
-                          printForm.quantity
+                          printForm.quantity,
                         );
                         return (
                           <div className="text-right">
-                            <span className="block text-[9px] font-mono text-zinc-500 uppercase">Jumlah Harga</span>
+                            <span className="block text-[9px] font-mono text-zinc-500 uppercase">
+                              Jumlah Harga
+                            </span>
                             <span className="text-lg font-bold text-emerald-400 font-mono">
                               RM {finalSubtotal.toFixed(2)}
                             </span>
@@ -2310,7 +2479,9 @@ export default function App() {
                           type="text"
                           required
                           value={printForm.name}
-                          onChange={(e) => setPrintForm({ ...printForm, name: e.target.value })}
+                          onChange={(e) =>
+                            setPrintForm({ ...printForm, name: e.target.value })
+                          }
                           placeholder="Nama Penuh *"
                           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
                         />
@@ -2318,8 +2489,13 @@ export default function App() {
                           type="tel"
                           required
                           value={printForm.phone}
-                          onChange={(e) => setPrintForm({ ...printForm, phone: e.target.value })}
-                          placeholder="No. Telefon (WhatsApp) *"
+                          onChange={(e) =>
+                            setPrintForm({
+                              ...printForm,
+                              phone: e.target.value,
+                            })
+                          }
+                          placeholder="No. Telefon *"
                           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
                         />
                       </div>
@@ -2327,7 +2503,9 @@ export default function App() {
                         type="email"
                         required
                         value={printForm.email}
-                        onChange={(e) => setPrintForm({ ...printForm, email: e.target.value })}
+                        onChange={(e) =>
+                          setPrintForm({ ...printForm, email: e.target.value })
+                        }
                         placeholder="Alamat Emel *"
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-650"
                       />
@@ -2340,11 +2518,17 @@ export default function App() {
                           type="checkbox"
                           required
                           checked={printForm.agreedToTerms}
-                          onChange={(e) => setPrintForm(prev => ({ ...prev, agreedToTerms: e.target.checked }))}
+                          onChange={(e) =>
+                            setPrintForm((prev) => ({
+                              ...prev,
+                              agreedToTerms: e.target.checked,
+                            }))
+                          }
                           className="mt-0.5 w-3.5 h-3.5 rounded border-zinc-800 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20 accent-emerald-500 cursor-pointer"
                         />
                         <span className="text-[10px] text-zinc-500 group-hover:text-zinc-350 transition-colors leading-relaxed">
-                          Saya mengesahkan maklumat tempahan ini betul &amp; bersetuju dengan terma cetakan.
+                          Saya mengesahkan maklumat tempahan ini betul &amp;
+                          bersetuju dengan terma cetakan.
                         </span>
                       </label>
 
@@ -2358,11 +2542,10 @@ export default function App() {
                         }
                         className="w-full py-3 bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500 rounded-xl text-xs uppercase tracking-wider font-bold transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                       >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Tempah Sekarang via WhatsApp</span>
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Tempah Sekarang via Emel</span>
                       </button>
                     </div>
-
                   </div>
                 </div>
               </form>
@@ -2554,7 +2737,7 @@ export default function App() {
                     </p>
                     <p className="text-[11px] sm:text-xs text-zinc-500 max-w-xs">
                       {selectedRental.id === "r4"
-                        ? "We have received your printing request. Sila hantar fail gambar anda melalui WhatsApp/Email untuk tindakan segera."
+                        ? "We have received your printing request. Pengesahan tempahan telah dihantar melalui Emel."
                         : "We have reserved your gear block. Access your lease metrics directly inside your client portal dashboard."}
                     </p>
                   </div>
@@ -2884,7 +3067,8 @@ export default function App() {
                             <div className="flex justify-between items-start">
                               <div>
                                 <span>
-                                  Base Rate (RM {dailyRate} × {days} {days === 1 ? "day" : "days"})
+                                  Base Rate (RM {dailyRate} × {days}{" "}
+                                  {days === 1 ? "day" : "days"})
                                 </span>
                                 {isDiscounted && (
                                   <span className="block text-[9px] text-emerald-400 font-sans mt-0.5">
@@ -2909,7 +3093,9 @@ export default function App() {
                               </span>
                             </div>
                             <p className="text-[9px] text-zinc-500 leading-normal italic pt-1 text-center">
-                              * Refundable deposit of RM {securityDeposit.toFixed(2)} authorized upon pickup verification.
+                              * Refundable deposit of RM{" "}
+                              {securityDeposit.toFixed(2)} authorized upon
+                              pickup verification.
                             </p>
                           </div>
                         );
