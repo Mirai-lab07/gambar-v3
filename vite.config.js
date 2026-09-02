@@ -8,4 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(), // Seamlessly compiles Tailwind v4 classes without postcss configs
   ],
+  optimizeDeps: {
+    include: ["@emailjs/browser"],
+  },
 });
