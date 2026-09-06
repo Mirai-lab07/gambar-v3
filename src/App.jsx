@@ -481,8 +481,7 @@ const RENTAL_ITEMS = [
       "Sport Kit (RM65): Action Mount, 2x Bateri & Case",
       "Semua Pakej: Charger, 64GB SD, Lens Cloth, Pouch",
     ],
-    image:
-      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=800",
+    image: "/image/background/Insta360-X4-Air.jpg",
   },
 ];
 
@@ -830,7 +829,10 @@ export default function App() {
         const result = await response.json();
         if (result.status === "success" && result.data && result.data.url) {
           // Convert preview page link to direct download link
-          fileUrl = result.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+          fileUrl = result.data.url.replace(
+            "tmpfiles.org/",
+            "tmpfiles.org/dl/",
+          );
         }
       } catch (err) {
         console.error("Gagal memuat naik gambar:", err);
@@ -894,7 +896,9 @@ export default function App() {
         (fileUrl ? `Pautan Fail Gambar (Download): ${fileUrl}\n` : "") +
         `Kaedah Terima: ${printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"}\n` +
         (printForm.address ? `Alamat Pos: ${printForm.address}\n` : "") +
-        (printForm.customNotes ? `Nota Tambahan: ${printForm.customNotes}\n` : "") +
+        (printForm.customNotes
+          ? `Nota Tambahan: ${printForm.customNotes}\n`
+          : "") +
         `\nMAKLUMAT PELANGGAN:\n` +
         `Nama: ${printForm.name}\n` +
         `Emel: ${printForm.email}\n` +
@@ -914,11 +918,16 @@ export default function App() {
           console.log("Email berjaya dihantar melalui EmailJS:", result.text);
         })
         .catch((error) => {
-          console.error("Gagal menghantar melalui EmailJS, beralih ke mailto:", error);
+          console.error(
+            "Gagal menghantar melalui EmailJS, beralih ke mailto:",
+            error,
+          );
           triggerMailtoFallback();
         });
     } else {
-      console.warn("Kunci EmailJS tidak dijumpai dalam .env. Beralih ke mailto link.");
+      console.warn(
+        "Kunci EmailJS tidak dijumpai dalam .env. Beralih ke mailto link.",
+      );
       triggerMailtoFallback();
     }
   };
@@ -1183,7 +1192,9 @@ export default function App() {
     const emailBody =
       `PERMOHONAN SEWAAN PERALATAN (LEASE REQUEST)\n\n` +
       `Peralatan: ${selectedRental.name}\n` +
-      (isInsta360 ? `Pakej Kit: ${rentalForm.selectedKit || "Standard Kit"}\n` : "") +
+      (isInsta360
+        ? `Pakej Kit: ${rentalForm.selectedKit || "Standard Kit"}\n`
+        : "") +
       `Tempoh: ${days} Hari (${formattedStart} hingga ${formattedEnd})\n` +
       `Jumlah Kos: RM ${finalCost.toFixed(2)}\n\n` +
       `MAKLUMAT PELANGGAN:\n` +
@@ -1213,7 +1224,9 @@ export default function App() {
             client_email: rentalForm.email,
             client_phone: rentalForm.phone,
             equipment_name: selectedRental.name,
-            selected_kit: isInsta360 ? rentalForm.selectedKit || "Standard Kit" : "-",
+            selected_kit: isInsta360
+              ? rentalForm.selectedKit || "Standard Kit"
+              : "-",
             duration: `${days} Hari (${formattedStart} hingga ${formattedEnd})`,
             total_price: `RM ${finalCost.toFixed(2)}`,
             notes: "Permohonan Sewaan Peralatan",
@@ -1221,10 +1234,16 @@ export default function App() {
           publicKey,
         )
         .then((result) => {
-          console.log("Email sewaan berjaya dihantar melalui EmailJS:", result.text);
+          console.log(
+            "Email sewaan berjaya dihantar melalui EmailJS:",
+            result.text,
+          );
         })
         .catch((error) => {
-          console.error("Gagal menghantar melalui EmailJS, beralih ke mailto:", error);
+          console.error(
+            "Gagal menghantar melalui EmailJS, beralih ke mailto:",
+            error,
+          );
           triggerMailtoFallback();
         });
     } else {
@@ -2132,31 +2151,116 @@ export default function App() {
                 </div>
               </motion.div>
             ) : (
-              <form ref={printFormRef} onSubmit={handlePrintSubmit} className="space-y-6">
+              <form
+                ref={printFormRef}
+                onSubmit={handlePrintSubmit}
+                className="space-y-6"
+              >
                 {/* Hidden input fields for EmailJS template fields */}
-                <input type="hidden" name="to_name" value="Mirul Studio Admin" />
+                <input
+                  type="hidden"
+                  name="to_name"
+                  value="Mirul Studio Admin"
+                />
                 <input type="hidden" name="from_name" value={printForm.name} />
-                <input type="hidden" name="client_email" value={printForm.email} />
-                <input type="hidden" name="client_phone" value={printForm.phone} />
-                <input type="hidden" name="print_size" value={(() => {
-                  const { sizeObj } = calculatePrintingPricing(printForm.sizeId, printForm.paperType, printForm.frameId, printForm.quantity);
-                  return sizeObj ? `${sizeObj.name} (${sizeObj.dimensions})` : printForm.sizeId;
-                })()} />
-                <input type="hidden" name="paper_type" value={(() => {
-                  const paperObj = PRINT_PAPER_TYPES.find(p => p.id === printForm.paperType);
-                  return paperObj?.name || printForm.paperType;
-                })()} />
-                <input type="hidden" name="border_style" value={printForm.borderStyle === "bleed" ? "Full Bleed" : "White Margin"} />
-                <input type="hidden" name="color_tone" value={printForm.colorTone === "bw" ? "Hitam & Putih (B&W)" : printForm.colorTone === "vintage" ? "Vintage Warm" : "Warna Asal"} />
-                <input type="hidden" name="quantity" value={`${printForm.quantity} pcs`} />
-                <input type="hidden" name="pickup_method" value={printForm.pickupMethod === "pickup" ? "Pickup Studio Melaka" : "Penghantaran Pos (Postage)"} />
-                <input type="hidden" name="postage_address" value={printForm.address || "-"} />
-                <input type="hidden" name="custom_notes" value={printForm.customNotes || "-"} />
-                <input type="hidden" name="total_price" value={(() => {
-                  const { finalSubtotal } = calculatePrintingPricing(printForm.sizeId, printForm.paperType, printForm.frameId, printForm.quantity);
-                  return `RM ${finalSubtotal.toFixed(2)}`;
-                })()} />
-                <input type="hidden" name="download_link" value="" id="emailjs_download_link" />
+                <input
+                  type="hidden"
+                  name="client_email"
+                  value={printForm.email}
+                />
+                <input
+                  type="hidden"
+                  name="client_phone"
+                  value={printForm.phone}
+                />
+                <input
+                  type="hidden"
+                  name="print_size"
+                  value={(() => {
+                    const { sizeObj } = calculatePrintingPricing(
+                      printForm.sizeId,
+                      printForm.paperType,
+                      printForm.frameId,
+                      printForm.quantity,
+                    );
+                    return sizeObj
+                      ? `${sizeObj.name} (${sizeObj.dimensions})`
+                      : printForm.sizeId;
+                  })()}
+                />
+                <input
+                  type="hidden"
+                  name="paper_type"
+                  value={(() => {
+                    const paperObj = PRINT_PAPER_TYPES.find(
+                      (p) => p.id === printForm.paperType,
+                    );
+                    return paperObj?.name || printForm.paperType;
+                  })()}
+                />
+                <input
+                  type="hidden"
+                  name="border_style"
+                  value={
+                    printForm.borderStyle === "bleed"
+                      ? "Full Bleed"
+                      : "White Margin"
+                  }
+                />
+                <input
+                  type="hidden"
+                  name="color_tone"
+                  value={
+                    printForm.colorTone === "bw"
+                      ? "Hitam & Putih (B&W)"
+                      : printForm.colorTone === "vintage"
+                        ? "Vintage Warm"
+                        : "Warna Asal"
+                  }
+                />
+                <input
+                  type="hidden"
+                  name="quantity"
+                  value={`${printForm.quantity} pcs`}
+                />
+                <input
+                  type="hidden"
+                  name="pickup_method"
+                  value={
+                    printForm.pickupMethod === "pickup"
+                      ? "Pickup Studio Melaka"
+                      : "Penghantaran Pos (Postage)"
+                  }
+                />
+                <input
+                  type="hidden"
+                  name="postage_address"
+                  value={printForm.address || "-"}
+                />
+                <input
+                  type="hidden"
+                  name="custom_notes"
+                  value={printForm.customNotes || "-"}
+                />
+                <input
+                  type="hidden"
+                  name="total_price"
+                  value={(() => {
+                    const { finalSubtotal } = calculatePrintingPricing(
+                      printForm.sizeId,
+                      printForm.paperType,
+                      printForm.frameId,
+                      printForm.quantity,
+                    );
+                    return `RM ${finalSubtotal.toFixed(2)}`;
+                  })()}
+                />
+                <input
+                  type="hidden"
+                  name="download_link"
+                  value=""
+                  id="emailjs_download_link"
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
                   {/* Left Column: Photo Upload & Preview (5 Cols) */}
