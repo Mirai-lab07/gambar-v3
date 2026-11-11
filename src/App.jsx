@@ -481,7 +481,7 @@ const RENTAL_ITEMS = [
       "Sport Kit (RM65): Action Mount, 2x Bateri & Case",
       "Semua Pakej: Charger, 64GB SD, Lens Cloth, Pouch",
     ],
-    image: "/image/background/Insta360-X4-Air.jpg",
+    image: "/image/background/Insta X-4Air.jpg",
   },
 ];
 
